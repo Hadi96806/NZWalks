@@ -1,4 +1,5 @@
-﻿using AutoMapper;
+﻿using Asp.Versioning;
+using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -8,32 +9,57 @@ using NZWalks.API.Data;
 using NZWalks.API.Models.Domain;
 using NZWalks.API.Models.DTO;
 using NZWalks.API.Respositries;
+using System.Text.Json;
 
 namespace NZWalks.API.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/v{version:apiVersion}/[controller]")]
+    [ApiVersion(1.0)]
+    [ApiVersion(2.0)]
     public class RegionsController : ControllerBase
     {
         private readonly IRegionRespository regionRepositry;
         private readonly IMapper mapper;
 
-        public RegionsController(IRegionRespository regionRepositry, IMapper mapper)
+        public ILogger<RegionsController> Logger { get; }
+
+        public RegionsController(IRegionRespository regionRepositry, IMapper mapper, ILogger<RegionsController> logger)
         {
             this.regionRepositry = regionRepositry;
             this.mapper = mapper;
+            Logger = logger;
         }
 
-        //Get All Regions
+        //Get All Regions V1
         [HttpGet]
         [Authorize(Roles="Reader,Admin")]
-        public async Task<IActionResult> GetAll()
+        [MapToApiVersion("1.0")]
+        public async Task<IActionResult> GetAllV1()
         {
+            Logger.LogInformation("GET All Regions Action Invoked");
             var regions = await regionRepositry.GetAllAsync();
 
             //Map Domina Model To DTO
-            var regionsDto = mapper.Map<List<RegionDto>>(regions);
-            
+            var regionsDto = mapper.Map<List<RegionDtoV1>>(regions);
+            Logger.LogInformation($"Get All Regions Finished {regionsDto.Count} regions was retrieved");
+            Logger.LogInformation($"Regions : {JsonSerializer.Serialize(regionsDto)}");
+            return Ok(regionsDto);
+        }
+
+        //Get All Regions v2
+        [HttpGet]
+        [Authorize(Roles="Reader,Admin")]
+        [MapToApiVersion("2.0")]
+        public async Task<IActionResult> GetAllV2()
+        {
+            Logger.LogInformation("GET All Regions Action Invoked");
+            var regions = await regionRepositry.GetAllAsync();
+
+            //Map Domina Model To DTO
+            var regionsDto = mapper.Map<List<RegionDtoV2>>(regions);
+            Logger.LogInformation($"Get All Regions Finished {regionsDto.Count} regions was retrieved");
+            Logger.LogInformation($"Regions : {JsonSerializer.Serialize(regionsDto)}");
             return Ok(regionsDto);
         }
 
@@ -48,7 +74,7 @@ namespace NZWalks.API.Controllers
             {
                 return NotFound();
             }
-            var regionDto = mapper.Map<RegionDto>(region);
+            var regionDto = mapper.Map<RegionDtoV1>(region);
             return Ok(regionDto); 
         }
 
@@ -63,7 +89,7 @@ namespace NZWalks.API.Controllers
 
                 await regionRepositry.CreateAsync(regionDomainModal);
 
-                var regionDto = mapper.Map<RegionDto>(regionDomainModal);
+                var regionDto = mapper.Map<RegionDtoV1>(regionDomainModal);
 
                 return CreatedAtAction(nameof(GetById), new { id = regionDto.Id }, regionDto);
             }
@@ -88,7 +114,7 @@ namespace NZWalks.API.Controllers
                 return NotFound();
             }
 
-            var regionDto = mapper.Map<RegionDto>(regionDomainModel);
+            var regionDto = mapper.Map<RegionDtoV1>(regionDomainModel);
 
             return Ok(regionDto);
         }
@@ -105,7 +131,7 @@ namespace NZWalks.API.Controllers
                 return NotFound();
             }
          
-            var regionDto = mapper?.Map<RegionDto>(regionDomainModel);
+            var regionDto = mapper?.Map<RegionDtoV1>(regionDomainModel);
             return Ok(regionDto);
         }
     }

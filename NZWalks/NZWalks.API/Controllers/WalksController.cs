@@ -29,7 +29,7 @@ namespace NZWalks.API.Controllers
             [FromQuery] bool? isAscending, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
             var walkPageResult = await walkRepository.GetAllAsync(filtertOn, filrQuery, sortBy, isAscending ??  true, pageNumber, pageSize) ;
-
+            
             // Map walkDomainModal to walkDto
             var walkPageDtoResult = mapper.Map<WalkPageDtoResult>(walkPageResult);
             return Ok(walkPageDtoResult);
