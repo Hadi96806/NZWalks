@@ -23,7 +23,7 @@ namespace NZWalks.API.Middlewares
             }
             catch(Exception ex)
             {
-                var errorId = new Guid();
+                var errorId = Guid.NewGuid();
 
                 //Log the exception
                 logger.LogError(ex, $"{errorId} : {ex.Message}");
