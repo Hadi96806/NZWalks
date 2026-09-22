@@ -30,7 +30,7 @@ namespace NZWalks.API.Middlewares
 
                 //Return custom error response
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                context.Response.ContentType = "Aplication/json";
+                context.Response.ContentType = "Application/json";
 
                 var error = new 
                 {

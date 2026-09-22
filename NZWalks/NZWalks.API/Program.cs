@@ -168,3 +168,68 @@ app.Run();
 //Make all cecessary changes in the new version created for the API
 
 
+// 1. Add centralized validation using FluentValidation (Create + Update DTOs)
+//    Example: Reject empty Name, invalid DifficultyId, invalid RegionId before reaching service layer
+
+// 2. Validate foreign keys explicitly
+//    Check if RegionId and DifficultyId exist in DB before insert/update
+//    Return meaningful 404/400 responses if invalid
+
+// 3. Implement dynamic filtering + sorting + pagination for all GET endpoints
+//    Example: /walks?filterOn=name&filterQuery=mountain&sortBy=name&isAscending=true&page=1&pageSize=10
+
+// 4. Safely handle dynamic filter columns
+//    Validate filterOn against allowed column whitelist
+//    Handle type conversion (string, int, GUID) safely
+
+// 5. Add standardized API response model
+//    Example: { success, data, errors, traceId }
+
+// 6. Implement global exception handling using middleware + ProblemDetails (RFC 7807)
+//    Ensure all exceptions are mapped to consistent HTTP responses
+
+// 7. Improve ExceptionHandlerMiddleware
+//    Log stack traces with Serilog
+//    Return user-friendly messages (not raw exceptions)
+
+// 8. Add structured logging across all controllers and services
+//    Include: requestId, userId, endpoint, execution time
+
+// 9. Add correlation ID middleware
+//    Track each request end-to-end for debugging
+
+// 10. Add API rate limiting
+//     - Per IP limits
+//     - Per authenticated user limits
+//     - Burst protection for abuse prevention
+
+// 11. Add CORS policy configuration
+//     - Allow only trusted origins per environment (dev/staging/prod)
+//     - Do NOT use AllowAnyOrigin in production
+
+// 12. Containerize the application using Docker
+//     - Create Dockerfile
+//     - Add docker-compose (API + SQL Server)
+//     - Environment-based configuration support
+
+// 13. Add CI/CD pipeline (GitHub Actions or Azure DevOps)
+//     - Build
+//     - Run tests
+//     - Build Docker image
+//     - Deploy to staging environment
+
+// 14. Create a separate client project to consume the API
+//     - Demonstrate real-world usage (frontend or console app)
+
+// 15. Add health checks and readiness endpoints
+//     Example: /health, /ready
+
+// 16. Add caching layer (optional but strong enhancement)
+//     - In-memory caching for frequently accessed endpoints
+//     - Consider distributed cache (Redis) for scalability
+
+// 17. Add authentication hardening
+//     - Review JWT expiry strategy
+//     - Secure refresh token flow (if applicable)
+
+// 18. Ensure Swagger is environment-aware and secured in production
