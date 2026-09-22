@@ -1,5 +1,6 @@
-﻿using Microsoft.AspNetCore.Http;
-using Serilog.Core;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using System.Diagnostics;
 using System.Net;
 
 namespace NZWalks.API.Middlewares
@@ -7,11 +8,13 @@ namespace NZWalks.API.Middlewares
     public class ExceptionHandlerMiddleware
     {
         private readonly ILogger<ExceptionHandlerMiddleware> logger;
+        private readonly IHostEnvironment environment;
         private readonly RequestDelegate Request;
 
-        public ExceptionHandlerMiddleware(ILogger<ExceptionHandlerMiddleware> logger, RequestDelegate request) 
+        public ExceptionHandlerMiddleware(ILogger<ExceptionHandlerMiddleware> logger, IHostEnvironment environment, RequestDelegate request)
         {
             this.logger = logger;
+            this.environment = environment;
             this.Request = request;
         }
 
@@ -24,22 +27,34 @@ namespace NZWalks.API.Middlewares
             catch(Exception ex)
             {
                 var errorId = Guid.NewGuid();
+                var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
 
                 //Log the exception
-                logger.LogError(ex, $"{errorId} : {ex.Message}");
+                logger.LogError(ex, "{ErrorId} (trace {TraceId}) : {Message}", errorId, traceId, ex.Message);
 
-                //Return custom error response
-                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                context.Response.ContentType = "Application/json";
-
-                var error = new 
+                //Headers and status can't be changed once the response has started streaming
+                if (context.Response.HasStarted)
                 {
-                    Id = errorId,
-                    ErrorMessage = "Something went wrong, please contact adminstrator"
+                    throw;
+                }
+
+                //Return RFC 7807 ProblemDetails response
+                var problem = new ProblemDetails
+                {
+                    Type = "https://tools.ietf.org/html/rfc9110#section-15.6.1",
+                    Title = "An unexpected error occurred.",
+                    Status = (int)HttpStatusCode.InternalServerError,
+                    Detail = environment.IsDevelopment()
+                        ? ex.Message
+                        : "Something went wrong, please contact adminstrator",
+                    Instance = context.Request.Path
                 };
+                problem.Extensions["errorId"] = errorId;
+                problem.Extensions["traceId"] = traceId;
 
-                await context.Response.WriteAsJsonAsync(error);
-
+                context.Response.Clear();
+                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                await context.Response.WriteAsJsonAsync(problem, options: null, contentType: "application/problem+json");
             }
         }
 

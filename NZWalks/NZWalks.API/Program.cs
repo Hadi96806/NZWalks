@@ -30,6 +30,7 @@ builder.Logging.AddSerilog(logger);
 
 
 builder.Services.AddControllers();
+builder.Services.AddProblemDetails();
 
 builder.Services.AddApiVersioning(options =>
 {
@@ -143,6 +144,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<ExceptionHandlerMiddleware>();
+app.UseStatusCodePages();
 app.UseHttpsRedirection();
 
 app.UseStaticFiles(new StaticFileOptions 
