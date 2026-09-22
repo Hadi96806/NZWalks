@@ -16,7 +16,7 @@ namespace NZWalks.API.Respositries
 
         public async Task<List<Region>> GetAllAsync()
         {
-            return await dbContext.Regions.ToListAsync();
+            return await dbContext.Regions.AsNoTracking().ToListAsync();
         }
 
         public async Task<Region> CreateAsync(Region region)
@@ -41,7 +41,8 @@ namespace NZWalks.API.Respositries
 
         public async Task<Region?> GetByIdAsync(Guid id)
         {
-            return await dbContext.Regions.FindAsync(id);
+            //FindAsync always tracks, so query by key instead
+            return await dbContext.Regions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
         }
 
         public async Task<Region> UpdateAsync(Guid id, Region region)
@@ -67,7 +68,7 @@ namespace NZWalks.API.Respositries
                 regionToUpdate.RegionImageUrl = region.RegionImageUrl;
             }
 
-            dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync();
             return regionToUpdate;
         }
     }

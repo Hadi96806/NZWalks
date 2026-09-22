@@ -35,7 +35,7 @@ namespace NZWalks.API.Respositries
 
         public async Task<WalkPageResult> GetAllAsync(string? filtertOn = null, string? filterQuery = null, string? sortBy = null, bool isAscending = true, int pageNumber = 1, int pageSize = 10)
         {
-            var walks = dbContext.Walks.Include(walks => walks.Difficulty).Include(walks => walks.Region).AsQueryable();
+            var walks = dbContext.Walks.AsNoTracking().Include(walks => walks.Difficulty).Include(walks => walks.Region).AsQueryable();
              //filtering
             if (!string.IsNullOrEmpty(filtertOn) && !string.IsNullOrEmpty(filterQuery))
             {
@@ -74,7 +74,7 @@ namespace NZWalks.API.Respositries
 
         public async Task<Walk?> GetByIdAsync(Guid id)
         {
-            return await dbContext.Walks.Include(w => w.Region).Include(w => w.Difficulty).FirstOrDefaultAsync(x => x.Id == id);
+            return await dbContext.Walks.AsNoTracking().Include(w => w.Region).Include(w => w.Difficulty).FirstOrDefaultAsync(x => x.Id == id);
         }
 
         public async Task<Walk> UpdateAsync(Guid id, Walk walk)
