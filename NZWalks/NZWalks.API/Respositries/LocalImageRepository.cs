@@ -16,13 +16,13 @@ namespace NZWalks.API.Respositries
             this.dbContext = dbContext;
         }
 
-        public async Task<Image> Upload(Image image)
+        public async Task<Image> Upload(Image image, CancellationToken cancellationToken = default)
         {
             var localFilePath = Path.Combine(webHostEnvironment.ContentRootPath, "Images", $"{image.Name}{image.FileExtension}");
 
             //Upload image to local path
             using var stream = new FileStream(localFilePath, FileMode.Create);
-            await image.File.CopyToAsync(stream);
+            await image.File.CopyToAsync(stream, cancellationToken);
 
             //Create File path https://localhost:1234/images/image.png
             var urlFilePath = $"{httpContextAccessor.HttpContext.Request.Scheme}://{httpContextAccessor.HttpContext.Request.Host}" +
@@ -30,8 +30,8 @@ namespace NZWalks.API.Respositries
             image.FilePath = urlFilePath;
 
             //Add image to Images table
-            await dbContext.Images.AddAsync(image);
-            await dbContext.SaveChangesAsync();
+            await dbContext.Images.AddAsync(image, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
 
             return image;
         }

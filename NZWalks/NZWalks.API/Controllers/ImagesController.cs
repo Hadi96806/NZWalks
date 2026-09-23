@@ -22,7 +22,7 @@ namespace NZWalks.API.Controllers
         // POST: /api/Images/Upload
         [HttpPost]
         [Route("Upload")]
-        public async Task<IActionResult> Upload([FromForm] ImageUploadDto img)
+        public async Task<IActionResult> Upload([FromForm] ImageUploadDto img, CancellationToken cancellationToken)
         {
             ValidateFileUpload(img);
 
@@ -39,7 +39,7 @@ namespace NZWalks.API.Controllers
                 };
 
                 //Use repository to upload image
-                await ImageRepository.Upload(imageDomainModel);
+                await ImageRepository.Upload(imageDomainModel, cancellationToken);
 
                 return Ok(imageDomainModel);
             }

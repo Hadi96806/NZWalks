@@ -4,10 +4,10 @@ namespace NZWalks.API.Respositries
 {
     public interface IRegionRespository
     {
-        Task<List<Region>> GetAllAsync();
-        Task<Region?> GetByIdAsync(Guid id);
-        Task<Region> CreateAsync(Region region);
-        Task<Region?> UpdateAsync(Guid id,Region region);
-        Task<Region?> DeleteAsync(Guid id);
+        Task<List<Region>> GetAllAsync(CancellationToken cancellationToken = default);
+        Task<Region?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+        Task<Region> CreateAsync(Region region, CancellationToken cancellationToken = default);
+        Task<Region?> UpdateAsync(Guid id, Region region, CancellationToken cancellationToken = default);
+        Task<Region?> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
     }
 }

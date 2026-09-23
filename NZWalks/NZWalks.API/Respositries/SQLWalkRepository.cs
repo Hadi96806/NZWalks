@@ -13,31 +13,31 @@ namespace NZWalks.API.Respositries
         {
             this.dbContext = dbContext;
         }
-        public async Task<Walk> CreateAsync(Walk walk)
+        public async Task<Walk> CreateAsync(Walk walk, CancellationToken cancellationToken = default)
         {
-            await dbContext.AddAsync(walk);
-            await dbContext.SaveChangesAsync();
+            await dbContext.AddAsync(walk, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
 
             //Load navigations so the returned walk has its Region and Difficulty
-            await dbContext.Entry(walk).Reference(w => w.Region).LoadAsync();
-            await dbContext.Entry(walk).Reference(w => w.Difficulty).LoadAsync();
+            await dbContext.Entry(walk).Reference(w => w.Region).LoadAsync(cancellationToken);
+            await dbContext.Entry(walk).Reference(w => w.Difficulty).LoadAsync(cancellationToken);
             return walk;
         }
 
-        public async Task<Walk?> DeleteAsync(Guid id)
+        public async Task<Walk?> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
         {
-            var walkToDelete = await dbContext.Walks.FindAsync(id);
+            var walkToDelete = await dbContext.Walks.FindAsync(new object?[] { id }, cancellationToken);
             if (walkToDelete != null)
             {
                 dbContext.Walks.Remove(walkToDelete);
-                await dbContext.SaveChangesAsync();
+                await dbContext.SaveChangesAsync(cancellationToken);
                 return walkToDelete;
             }
             return null;
-                    
+
         }
 
-        public async Task<WalkPageResult> GetAllAsync(string? filtertOn = null, string? filterQuery = null, string? sortBy = null, bool isAscending = true, int pageNumber = 1, int pageSize = 10)
+        public async Task<WalkPageResult> GetAllAsync(string? filtertOn = null, string? filterQuery = null, string? sortBy = null, bool isAscending = true, int pageNumber = 1, int pageSize = 10, CancellationToken cancellationToken = default)
         {
             var walks = dbContext.Walks.AsNoTracking().Include(walks => walks.Difficulty).Include(walks => walks.Region).AsQueryable();
              //filtering
@@ -62,8 +62,8 @@ namespace NZWalks.API.Respositries
 
             //Pagination
             var skipResults = (pageNumber - 1) * pageSize;
-            var totalItems = await walks.CountAsync();
-            var items = await walks.Skip(skipResults).Take(pageSize).ToListAsync();
+            var totalItems = await walks.CountAsync(cancellationToken);
+            var items = await walks.Skip(skipResults).Take(pageSize).ToListAsync(cancellationToken);
             var totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
 
             return new WalkPageResult { 
@@ -76,14 +76,14 @@ namespace NZWalks.API.Respositries
             //return await dbContext.Walks.Include(w => w.Difficulty).Include(w => w.Region).ToListAsync();
         }
 
-        public async Task<Walk?> GetByIdAsync(Guid id)
+        public async Task<Walk?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
-            return await dbContext.Walks.AsNoTracking().Include(w => w.Region).Include(w => w.Difficulty).FirstOrDefaultAsync(x => x.Id == id);
+            return await dbContext.Walks.AsNoTracking().Include(w => w.Region).Include(w => w.Difficulty).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         }
 
-        public async Task<Walk?> UpdateAsync(Guid id, Walk walk)
+        public async Task<Walk?> UpdateAsync(Guid id, Walk walk, CancellationToken cancellationToken = default)
         {
-            var walkToUpdate = await dbContext.Walks.FindAsync(id);
+            var walkToUpdate = await dbContext.Walks.FindAsync(new object?[] { id }, cancellationToken);
             if (walkToUpdate == null)
             {
                 return null;
@@ -96,8 +96,8 @@ namespace NZWalks.API.Respositries
             walkToUpdate.LengthInKm = walk.LengthInKm;
             walkToUpdate.WalkImageUrl = walk.WalkImageUrl;
 
-            await dbContext.SaveChangesAsync();
-            walkToUpdate = await dbContext.Walks.Include(w => w.Region).Include(walk => walk.Difficulty).FirstOrDefaultAsync(walk => walk.Id == id);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            walkToUpdate = await dbContext.Walks.Include(w => w.Region).Include(walk => walk.Difficulty).FirstOrDefaultAsync(walk => walk.Id == id, cancellationToken);
 
             return walkToUpdate;
 

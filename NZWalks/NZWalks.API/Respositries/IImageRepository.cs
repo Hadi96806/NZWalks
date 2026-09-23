@@ -4,6 +4,6 @@ namespace NZWalks.API.Respositries
 {
     public interface IImageRepository
     {
-        Task<Image> Upload(Image image);
+        Task<Image> Upload(Image image, CancellationToken cancellationToken = default);
     }
 }

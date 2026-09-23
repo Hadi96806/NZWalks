@@ -14,40 +14,40 @@ namespace NZWalks.API.Respositries
             dbContext = nZWalksDbContext;
         }
 
-        public async Task<List<Region>> GetAllAsync()
+        public async Task<List<Region>> GetAllAsync(CancellationToken cancellationToken = default)
         {
-            return await dbContext.Regions.AsNoTracking().ToListAsync();
+            return await dbContext.Regions.AsNoTracking().ToListAsync(cancellationToken);
         }
 
-        public async Task<Region> CreateAsync(Region region)
+        public async Task<Region> CreateAsync(Region region, CancellationToken cancellationToken = default)
         {
-            await dbContext.Regions.AddAsync(region);
-            await dbContext.SaveChangesAsync();
+            await dbContext.Regions.AddAsync(region, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
             return region;
         }
 
-        public async Task<Region?> DeleteAsync(Guid id)
+        public async Task<Region?> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
         {
-            var regionToDelete = await dbContext.Regions.FindAsync(id);
+            var regionToDelete = await dbContext.Regions.FindAsync(new object?[] { id }, cancellationToken);
             if(regionToDelete != null)
             {
                 dbContext.Regions.Remove(regionToDelete);
-                await dbContext.SaveChangesAsync();
+                await dbContext.SaveChangesAsync(cancellationToken);
                 return regionToDelete;
             }
             return null;
 
         }
 
-        public async Task<Region?> GetByIdAsync(Guid id)
+        public async Task<Region?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
             //FindAsync always tracks, so query by key instead
-            return await dbContext.Regions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+            return await dbContext.Regions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         }
 
-        public async Task<Region?> UpdateAsync(Guid id, Region region)
+        public async Task<Region?> UpdateAsync(Guid id, Region region, CancellationToken cancellationToken = default)
         {
-            var regionToUpdate = await dbContext.Regions.FindAsync(id);
+            var regionToUpdate = await dbContext.Regions.FindAsync(new object?[] { id }, cancellationToken);
             if(regionToUpdate == null)
             {
                 return null;
@@ -68,7 +68,7 @@ namespace NZWalks.API.Respositries
                 regionToUpdate.RegionImageUrl = region.RegionImageUrl;
             }
 
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(cancellationToken);
             return regionToUpdate;
         }
     }

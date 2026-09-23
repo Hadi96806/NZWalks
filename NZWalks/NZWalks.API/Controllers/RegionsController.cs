@@ -35,10 +35,10 @@ namespace NZWalks.API.Controllers
         [HttpGet]
         [Authorize(Roles="Reader,Admin")]
         [MapToApiVersion("1.0")]
-        public async Task<IActionResult> GetAllV1()
+        public async Task<IActionResult> GetAllV1(CancellationToken cancellationToken)
         {
             Logger.LogInformation("GET All Regions Action Invoked");
-            var regions = await regionRepositry.GetAllAsync();
+            var regions = await regionRepositry.GetAllAsync(cancellationToken);
 
             //Map Domina Model To DTO
             var regionsDto = mapper.Map<List<RegionDtoV1>>(regions);
@@ -51,10 +51,10 @@ namespace NZWalks.API.Controllers
         [HttpGet]
         [Authorize(Roles="Reader,Admin")]
         [MapToApiVersion("2.0")]
-        public async Task<IActionResult> GetAllV2()
+        public async Task<IActionResult> GetAllV2(CancellationToken cancellationToken)
         {
             Logger.LogInformation("GET All Regions Action Invoked");
-            var regions = await regionRepositry.GetAllAsync();
+            var regions = await regionRepositry.GetAllAsync(cancellationToken);
 
             //Map Domina Model To DTO
             var regionsDto = mapper.Map<List<RegionDtoV2>>(regions);
@@ -67,9 +67,9 @@ namespace NZWalks.API.Controllers
         [HttpGet]
         [Route("id:Guid")]
         [Authorize(Roles ="Reader,Admin")]
-        public async Task<IActionResult> GetById(Guid id) {
+        public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken) {
             //var region = dbContext.Regions.FirstOrDefault(x=>x.Id==id);
-            var region = await regionRepositry.GetByIdAsync(id);
+            var region = await regionRepositry.GetByIdAsync(id, cancellationToken);
             if (region == null)
             {
                 return NotFound();
@@ -82,12 +82,12 @@ namespace NZWalks.API.Controllers
         [HttpPost]
         [ValidateModel]
         [Authorize(Roles = "Writer,Admin")]
-        public async Task<IActionResult> Create(AddRegionDto addRegionDto) {
+        public async Task<IActionResult> Create(AddRegionDto addRegionDto, CancellationToken cancellationToken) {
             if(ModelState.IsValid)
             {
                 var regionDomainModal = mapper.Map<Region>(addRegionDto);
 
-                await regionRepositry.CreateAsync(regionDomainModal);
+                await regionRepositry.CreateAsync(regionDomainModal, cancellationToken);
 
                 var regionDto = mapper.Map<RegionDtoV1>(regionDomainModal);
 
@@ -104,11 +104,11 @@ namespace NZWalks.API.Controllers
         [Route("{id:Guid}")]
         [ValidateModel]
         [Authorize(Roles = "Writer,Admin")]
-        public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateRegionDto updateRegionDto)
+        public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateRegionDto updateRegionDto, CancellationToken cancellationToken)
         {
             var updateRegion = mapper.Map<Region>(updateRegionDto);
 
-            var regionDomainModel = await regionRepositry.UpdateAsync(id, updateRegion);
+            var regionDomainModel = await regionRepositry.UpdateAsync(id, updateRegion, cancellationToken);
             if (regionDomainModel == null)
             {
                 return NotFound();
@@ -123,9 +123,9 @@ namespace NZWalks.API.Controllers
         [HttpDelete]
         [Route("{id:Guid}")]
         [Authorize(Roles = "Writer,Admin")]
-        public async Task<IActionResult> Delete([FromRoute] Guid id)
+        public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken cancellationToken)
         {
-            var regionDomainModel = await regionRepositry.DeleteAsync(id);
+            var regionDomainModel = await regionRepositry.DeleteAsync(id, cancellationToken);
             if(regionDomainModel == null)
             {
                 return NotFound();
