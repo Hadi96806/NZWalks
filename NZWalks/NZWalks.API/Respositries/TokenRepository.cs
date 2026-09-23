@@ -27,7 +27,9 @@ namespace NZWalks.API.Respositries
                 claims.Add( new Claim(ClaimTypes.Role, role));
             }
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["Jwt:Key"]));
+            var jwtKey = config["Jwt:Key"]
+                ?? throw new InvalidOperationException("Missing configuration value 'Jwt:Key'.");
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 

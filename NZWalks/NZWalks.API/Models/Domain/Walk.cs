@@ -10,9 +10,9 @@
         public Guid DifficultyId { get; set; }
         public Guid RegionId { get; set; }
 
-        //Navigation Properties
-        public Difficulty Difficulty { get; set; }
-        public Region Region { get; set; }
+        //Navigation Properties - EF populates these when included/loaded
+        public Difficulty Difficulty { get; set; } = null!;
+        public Region Region { get; set; } = null!;
 
     }
 }

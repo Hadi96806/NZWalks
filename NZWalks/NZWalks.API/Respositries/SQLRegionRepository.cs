@@ -26,7 +26,7 @@ namespace NZWalks.API.Respositries
             return region;
         }
 
-        public async Task<Region> DeleteAsync(Guid id)
+        public async Task<Region?> DeleteAsync(Guid id)
         {
             var regionToDelete = await dbContext.Regions.FindAsync(id);
             if(regionToDelete != null)
@@ -45,7 +45,7 @@ namespace NZWalks.API.Respositries
             return await dbContext.Regions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
         }
 
-        public async Task<Region> UpdateAsync(Guid id, Region region)
+        public async Task<Region?> UpdateAsync(Guid id, Region region)
         {
             var regionToUpdate = await dbContext.Regions.FindAsync(id);
             if(regionToUpdate == null)

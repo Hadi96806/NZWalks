@@ -17,10 +17,14 @@ namespace NZWalks.API.Respositries
         {
             await dbContext.AddAsync(walk);
             await dbContext.SaveChangesAsync();
+
+            //Load navigations so the returned walk has its Region and Difficulty
+            await dbContext.Entry(walk).Reference(w => w.Region).LoadAsync();
+            await dbContext.Entry(walk).Reference(w => w.Difficulty).LoadAsync();
             return walk;
         }
 
-        public async Task<Walk> DeleteAsync(Guid id)
+        public async Task<Walk?> DeleteAsync(Guid id)
         {
             var walkToDelete = await dbContext.Walks.FindAsync(id);
             if (walkToDelete != null)
@@ -77,7 +81,7 @@ namespace NZWalks.API.Respositries
             return await dbContext.Walks.AsNoTracking().Include(w => w.Region).Include(w => w.Difficulty).FirstOrDefaultAsync(x => x.Id == id);
         }
 
-        public async Task<Walk> UpdateAsync(Guid id, Walk walk)
+        public async Task<Walk?> UpdateAsync(Guid id, Walk walk)
         {
             var walkToUpdate = await dbContext.Walks.FindAsync(id);
             if (walkToUpdate == null)
