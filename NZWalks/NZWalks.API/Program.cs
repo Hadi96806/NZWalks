@@ -150,9 +150,14 @@ app.UseMiddleware<ExceptionHandlerMiddleware>();
 app.UseStatusCodePages();
 app.UseHttpsRedirection();
 
-app.UseStaticFiles(new StaticFileOptions 
-{ 
-    FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Images")),
+//LocalImageRepository writes uploads here and does not create the directory itself,
+//and PhysicalFileProvider throws when it is missing - so ensure it exists before both.
+var imagesPath = Path.Combine(app.Environment.ContentRootPath, "Images");
+Directory.CreateDirectory(imagesPath);
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(imagesPath),
     RequestPath = "/Images"
 });
 
