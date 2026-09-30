@@ -1,5 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using NZWalks.API.Data;
+using NZWalks.API.Exceptions;
 using NZWalks.API.Models.Domain;
 using NZWalks.API.Models.Pagination_Result;
 
@@ -15,8 +17,10 @@ namespace NZWalks.API.Respositries
         }
         public async Task<Walk> CreateAsync(Walk walk, CancellationToken cancellationToken = default)
         {
+            await EnsureReferencesExistAsync(walk.RegionId, walk.DifficultyId, cancellationToken);
+
             await dbContext.AddAsync(walk, cancellationToken);
-            await dbContext.SaveChangesAsync(cancellationToken);
+            await SaveWalkChangesAsync(cancellationToken);
 
             //Load navigations so the returned walk has its Region and Difficulty
             await dbContext.Entry(walk).Reference(w => w.Region).LoadAsync(cancellationToken);
@@ -89,6 +93,8 @@ namespace NZWalks.API.Respositries
                 return null;
             }
 
+            await EnsureReferencesExistAsync(walk.RegionId, walk.DifficultyId, cancellationToken);
+
             walkToUpdate.Name = walk.Name;
             walkToUpdate.DifficultyId = walk.DifficultyId;
             walkToUpdate.RegionId = walk.RegionId;
@@ -96,11 +102,49 @@ namespace NZWalks.API.Respositries
             walkToUpdate.LengthInKm = walk.LengthInKm;
             walkToUpdate.WalkImageUrl = walk.WalkImageUrl;
 
-            await dbContext.SaveChangesAsync(cancellationToken);
+            await SaveWalkChangesAsync(cancellationToken);
             walkToUpdate = await dbContext.Walks.Include(w => w.Region).Include(walk => walk.Difficulty).FirstOrDefaultAsync(walk => walk.Id == id, cancellationToken);
 
             return walkToUpdate;
 
+        }
+
+        //Check the Region and Difficulty a walk points at exist, reporting every missing one
+        private async Task EnsureReferencesExistAsync(Guid regionId, Guid difficultyId, CancellationToken cancellationToken)
+        {
+            var errors = new Dictionary<string, string[]>();
+
+            if (!await dbContext.Regions.AnyAsync(r => r.Id == regionId, cancellationToken))
+            {
+                errors[nameof(Walk.RegionId)] = new[] { $"Region with id '{regionId}' does not exist." };
+            }
+
+            if (!await dbContext.Difficulties.AnyAsync(d => d.Id == difficultyId, cancellationToken))
+            {
+                errors[nameof(Walk.DifficultyId)] = new[] { $"Difficulty with id '{difficultyId}' does not exist." };
+            }
+
+            if (errors.Count > 0)
+            {
+                throw new InvalidReferenceException(errors);
+            }
+        }
+
+        //The existence check can race with a concurrent delete, so translate a
+        //SQL Server foreign key violation (error 547) into the same exception
+        private async Task SaveWalkChangesAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 547 })
+            {
+                throw new InvalidReferenceException(new Dictionary<string, string[]>
+                {
+                    ["Walk"] = new[] { "The referenced Region or Difficulty no longer exists." }
+                }, ex);
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using NZWalks.API.Exceptions;
 using System.Diagnostics;
 using System.Net;
 
@@ -24,7 +25,50 @@ namespace NZWalks.API.Middlewares
             {
                 await this.Request(context);
             }
-            catch(Exception ex)
+            catch (InvalidReferenceException ex)
+            {
+                //Client sent ids of records that don't exist - a bad request, not a server fault
+                logger.LogWarning("Invalid reference on {Path}: {@Errors}", context.Request.Path, ex.Errors);
+
+                if (context.Response.HasStarted)
+                {
+                    throw;
+                }
+
+                //Same shape as the automatic [ApiController] model validation errors
+                var problem = new ValidationProblemDetails(ex.Errors)
+                {
+                    Type = "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+                    Title = "One or more validation errors occurred.",
+                    Status = (int)HttpStatusCode.BadRequest,
+                    Detail = ex.Message,
+                    Instance = context.Request.Path
+                };
+
+                await WriteProblemAsync(context, problem, (int)HttpStatusCode.BadRequest);
+            }
+            catch (RegionInUseException ex)
+            {
+                //Request conflicts with the current state of the data
+                logger.LogWarning("Conflict on {Path}: {Message}", context.Request.Path, ex.Message);
+
+                if (context.Response.HasStarted)
+                {
+                    throw;
+                }
+
+                var problem = new ProblemDetails
+                {
+                    Type = "https://tools.ietf.org/html/rfc9110#section-15.5.10",
+                    Title = "The request conflicts with the current state of the resource.",
+                    Status = (int)HttpStatusCode.Conflict,
+                    Detail = ex.Message,
+                    Instance = context.Request.Path
+                };
+
+                await WriteProblemAsync(context, problem, (int)HttpStatusCode.Conflict);
+            }
+            catch (Exception ex)
             {
                 var errorId = Guid.NewGuid();
                 var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
@@ -52,11 +96,15 @@ namespace NZWalks.API.Middlewares
                 problem.Extensions["errorId"] = errorId;
                 problem.Extensions["traceId"] = traceId;
 
-                context.Response.Clear();
-                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                await context.Response.WriteAsJsonAsync(problem, options: null, contentType: "application/problem+json");
+                await WriteProblemAsync(context, problem, (int)HttpStatusCode.InternalServerError);
             }
         }
 
+        private static async Task WriteProblemAsync(HttpContext context, ProblemDetails problem, int statusCode)
+        {
+            context.Response.Clear();
+            context.Response.StatusCode = statusCode;
+            await context.Response.WriteAsJsonAsync(problem, options: null, contentType: "application/problem+json");
+        }
     }
 }

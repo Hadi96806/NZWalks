@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using NZWalks.API.Data;
+using NZWalks.API.Exceptions;
 using NZWalks.API.Models.Domain;
 using NZWalks.API.Models.DTO;
 
@@ -29,14 +30,20 @@ namespace NZWalks.API.Respositries
         public async Task<Region?> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
         {
             var regionToDelete = await dbContext.Regions.FindAsync(new object?[] { id }, cancellationToken);
-            if(regionToDelete != null)
+            if (regionToDelete == null)
             {
-                dbContext.Regions.Remove(regionToDelete);
-                await dbContext.SaveChangesAsync(cancellationToken);
-                return regionToDelete;
+                return null;
             }
-            return null;
 
+            var isRegionInUse = await dbContext.Walks.AnyAsync(w => w.RegionId == id, cancellationToken);
+            if (isRegionInUse)
+            {
+                throw new RegionInUseException(id);
+            }
+
+            dbContext.Regions.Remove(regionToDelete);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return regionToDelete;
         }
 
         public async Task<Region?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
