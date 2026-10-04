@@ -28,7 +28,7 @@ ones that are inconvenient. An entry that lists only upsides is not finished.
 | # | Decision | Status | Date |
 |---|---|---|---|
 | [0001](#adr-0001--validation-strategy) | Validation strategy: FluentValidation or data annotations | Open | 2026-09-30 |
-| [0002](#adr-0002--solution-layout-for-testability) | Solution layout for testability | Open | 2026-09-30 |
+| [0002](#adr-0002--solution-layout-for-testability) | Solution layout for testability | Accepted | 2026-10-04 |
 | [0003](#adr-0003--handling-of-secrets-already-in-git-history) | Handling of secrets already in git history | Open | 2026-09-30 |
 
 ---
@@ -71,7 +71,7 @@ live.
 
 ## ADR-0002 — Solution layout for testability
 
-**Status:** Open · **Date:** 2026-09-30
+**Status:** Accepted · **Date:** 2026-10-04
 
 ### Context
 
@@ -89,9 +89,11 @@ is exactly what Week 3 of the roadmap asks for. No week schedules the split.
 
 ### Decision
 
-_Not yet taken._ Recommended direction: **option 2.** Testing through the API assembly works
-fine at this size, and the split is a deliberate structural step that deserves its own slot
-rather than becoming a detour inside a week already budgeted for writing tests.
+**Option 2 — test through the API assembly.** Testing this way works fine at this size, and the
+split is a deliberate structural step that deserves its own slot rather than becoming a detour
+inside a week already budgeted for writing tests.
+
+Option 3 was rejected as a non-answer: deferring the decision is what leaves Week 3 without one.
 
 ### Consequences
 
@@ -100,6 +102,10 @@ rather than becoming a detour inside a week already budgeted for writing tests.
 - Test projects reference the web assembly, so test startup carries the hosting stack.
 - The split stays available later, and gets no harder for having waited — unlike the
   `Respositries` rename (finding #5), which does.
+- Acting on this needs one line in `Program.cs`: `public partial class Program { }`. Top-level
+  statements generate an `internal` `Program`, which a test assembly cannot name as the generic
+  argument to `WebApplicationFactory<Program>`. Without it the decision is unimplementable, and
+  Week 3 opens with a compiler error whose cause is not obvious. Tracked as Week 1 subtask B5s2.
 
 ---
 
