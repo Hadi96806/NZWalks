@@ -25,7 +25,7 @@ namespace NZWalks.API.Middlewares
             {
                 await this.Request(context);
             }
-            catch (InvalidReferenceException ex)
+            catch (InvalidReferenceException ex)// 400
             {
                 //Client sent ids of records that don't exist - a bad request, not a server fault
                 logger.LogWarning("Invalid reference on {Path}: {@Errors}", context.Request.Path, ex.Errors);
@@ -47,7 +47,7 @@ namespace NZWalks.API.Middlewares
 
                 await WriteProblemAsync(context, problem, (int)HttpStatusCode.BadRequest);
             }
-            catch (RegionInUseException ex)
+            catch (RegionInUseException ex)// 409
             {
                 //Request conflicts with the current state of the data
                 logger.LogWarning("Conflict on {Path}: {Message}", context.Request.Path, ex.Message);
@@ -68,7 +68,7 @@ namespace NZWalks.API.Middlewares
 
                 await WriteProblemAsync(context, problem, (int)HttpStatusCode.Conflict);
             }
-            catch (Exception ex)
+            catch (Exception ex)//500
             {
                 var errorId = Guid.NewGuid();
                 var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
@@ -90,7 +90,7 @@ namespace NZWalks.API.Middlewares
                     Status = (int)HttpStatusCode.InternalServerError,
                     Detail = environment.IsDevelopment()
                         ? ex.Message
-                        : "Something went wrong, please contact adminstrator",
+                        : "Something went wrong, please contact the administrator.",
                     Instance = context.Request.Path
                 };
                 problem.Extensions["errorId"] = errorId;
