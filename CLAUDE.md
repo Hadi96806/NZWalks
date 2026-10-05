@@ -17,6 +17,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - [docs/04-appendix-glossary.md](docs/04-appendix-glossary.md) — terms used across the set.
 - [docs/decisions.md](docs/decisions.md) — architecture decision log. Record a choice here when it closes off an alternative someone could reasonably have picked; check it before reversing something that looks arbitrary.
 
+## Planning
+
+- When planning any change in this project (including plan mode), use the `task-plan` skill.
+
 ## Commands
 
 Run all commands from `NZWalks/` (the folder holding the `.sln`).
