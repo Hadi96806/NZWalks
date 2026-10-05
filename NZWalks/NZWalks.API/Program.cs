@@ -18,6 +18,23 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Secrets live in user-secrets, not appsettings.json (which holds empty placeholders), so a
+// missing value is an empty string, not null. Fail fast and say how to fix it.
+string RequireSecret(string key)
+{
+    var value = builder.Configuration[key];
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        throw new InvalidOperationException(
+            $"Missing configuration value '{key}'. Set it with: " +
+            $"dotnet user-secrets set \"{key}\" \"<value>\" --project NZWalks.API");
+    }
+    return value;
+}
+
+RequireSecret("ConnectionStrings:NZWalksConnectionString");
+RequireSecret("ConnectionStrings:NZWalksAuthConnectionString");
+
 // Add services to the container.
 var logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -108,8 +125,7 @@ builder.Services.Configure<IdentityOptions>(options =>
         options.Password.RequiredUniqueChars = 1;
     });
 
-var jwtKey = builder.Configuration["Jwt:Key"]
-    ?? throw new InvalidOperationException("Missing configuration value 'Jwt:Key'.");
+var jwtKey = RequireSecret("Jwt:Key");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
