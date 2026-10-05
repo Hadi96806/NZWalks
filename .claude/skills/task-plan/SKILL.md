@@ -23,7 +23,7 @@ Be fast: read only what this action needs. Be smart: verify in the code, never f
 | Findings #1–#11 | `docs/03-FINDINGS-AND-TECH-DEBT.md` — a 2026-08-03 snapshot, re-check every finding |
 | Glossary | `docs/04-appendix-glossary.md` |
 | Decision log | `docs/decisions.md` |
-| Scheduled plans | `docs/plans/*.md` |
+| Scheduled plans | `docs/plans/*.md` (local, gitignored) + Notion: Claude Mastery → 14 weeks Program → Week N |
 | Week trackers | Week 1: `https://claude.ai/artifact/UcgFcrcwRmYXsvadtbsi9Z`, progress in db `progress/week1`. Later weeks: ask the user for the link. |
 | Roadmap | Notion "Claude Mastery", page id `3af62584db3280278821fe2480b8d8d3` |
 
@@ -96,6 +96,29 @@ implementations.** Structure:
    token and compare `exp − iat`, a curl that must now 401/403.
 5. **Docs to update** — finding to mark fixed in `03`, ADR to write/accept (map D↔ADR), tracker
    subtask to tick.
+
+## Step 7 — Save and publish the plan
+
+Every plan goes to **both** places — never just one:
+
+1. **Local file:** `docs/plans/<short-kebab-name>.md`. Plan mode already writes there via
+   `plansDirectory` in `.claude/settings.json`; rename an auto-generated filename to a readable
+   one. `docs/plans/` is **gitignored** — never `git add` it or commit a plan, and never move
+   a plan anywhere tracked.
+2. **Notion page, same structure every time:** Claude Mastery → **14 weeks Program**
+   (page `3f062584db32817f8ab9ead496f2d755`) → **Week N** page → the plan as a child page,
+   titled like the file. If the Week N page doesn't exist yet, create it under 14 weeks Program
+   first, then record its id in the list below.
+   - Known week pages: Week 1 = `3f062584db32815e917fcbbdb3ceadeb`.
+   - These are pages acting as folders. Notion's real Folders only hold uploaded files, so don't
+     use `notion-create-folder` for plans.
+   - Use Notion-flavoured Markdown: tables as `<table>`, steps as `- [ ]` to-dos so he can tick
+     them in Notion. Open with a callout naming the local file path.
+3. **Notion is the durable copy.** The local file isn't in git, so it has no history or backup.
+   When a plan changes, update the Notion page as well as the file.
+4. Give him both: the local path and the Notion link.
+5. Before publishing, grep the plan for the `Jwt:Key` value, the `sa` password and real emails —
+   Notion pages can be shared.
 
 Plan one action at a time. When done, stop and offer the next subtask — don't batch.
 
