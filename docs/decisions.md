@@ -29,7 +29,7 @@ ones that are inconvenient. An entry that lists only upsides is not finished.
 |---|---|---|---|
 | [0001](#adr-0001--validation-strategy) | Validation strategy: FluentValidation or data annotations | Open | 2026-09-30 |
 | [0002](#adr-0002--solution-layout-for-testability) | Solution layout for testability | Accepted | 2026-10-04 |
-| [0003](#adr-0003--handling-of-secrets-already-in-git-history) | Handling of secrets already in git history | Open | 2026-09-30 |
+| [0003](#adr-0003--handling-of-secrets-already-in-git-history) | Handling of secrets already in git history | Accepted | 2026-09-30 |
 
 ---
 
@@ -111,7 +111,7 @@ Option 3 was rejected as a non-answer: deferring the decision is what leaves Wee
 
 ## ADR-0003 — Handling of secrets already in git history
 
-**Status:** Open · **Date:** 2026-09-30
+**Status:** Accepted · **Date:** 2026-09-30 (accepted 2026-10-05)
 
 ### Context
 
@@ -128,14 +128,29 @@ nothing about values already published to the repository.
 
 ### Decision
 
-_Not yet taken._ Recommended direction: **option 1.** Rotate both values now and move
-configuration to user-secrets locally; treat the committed values as permanently compromised.
+**Option 1 — rotate and move to user-secrets.** Applied 2026-10-05: connection strings and
+`Jwt:Key` now live in user-secrets (`UserSecretsId` in the csproj); `appsettings.json` keeps empty
+placeholders so the config contract stays readable, and `Program.cs` fails at startup with the
+fix-it command when any of the three is null or empty. The treatment of the old values:
+
+- **`Jwt:Key` — rotated, old value dead.** Tokens signed with the committed key are rejected.
+- **App DB credential — rotated for NZWalks.** The app connects as a dedicated `nzwalks_app` login
+  with `db_owner` on `NZWalksDb` and `NZWalksAuthDb` only.
+- **`sa` password — NOT yet rotated.** Other projects on the same SQL Server instance still
+  connect as `sa`, so changing it would break them. Until it is changed, the committed `sa`
+  password is a live credential. Closing this is outstanding, not optional; update this entry when
+  it is done.
+
 Option 3 is not viable — it leaves live credentials exposed for five more weeks.
 
 ### Consequences
 
-- The old `sa` password and signing key must be considered public; any environment still using
-  them needs changing, not just this repo.
+- The old signing key is public and dead. The old `sa` password is public and **still live** until
+  rotated on the instance; any environment still using it needs changing, not just this repo.
+- A fresh clone has no secrets and will not start until they are set; the startup guard names
+  each missing key. user-secrets only load in `Development`, so other environments must supply
+  the values another way (Key Vault in Week 5).
+- `db_owner` is wider than runtime needs but is what `dotnet ef database update` requires.
 - History keeps the old values. Anyone cloning the repo can read them, so the rotation has to be
   real rather than cosmetic.
 - A history rewrite stays possible later, but it rewrites every commit hash and needs
