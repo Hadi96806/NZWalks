@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using NZWalks.API.Constants;
 using NZWalks.API.Models.DTO;
 using NZWalks.API.Respositries;
 
@@ -29,22 +30,40 @@ namespace NZWalks.API.Controllers
                 UserName = registerRequestDto.Email,
                 Email = registerRequestDto.Email
             };
-            var identityResult = await userManager.CreateAsync(identityUser, registerRequestDto.Password);
+            var createResult = await userManager.CreateAsync(identityUser, registerRequestDto.Password);
 
-            if(identityResult.Succeeded)
+            if (!createResult.Succeeded)
             {
-                //Add roles to this user
-                if(registerRequestDto.Roles != null && registerRequestDto.Roles.Any()) 
+                //Identity already wrote a readable message per broken rule (weak password, duplicate email...)
+                foreach (var error in createResult.Errors)
                 {
-                    await userManager.AddToRoleAsync(identityUser, registerRequestDto.Roles[0]);
-
-                    if(identityResult.Succeeded)
-                    {
-                        return Ok("User was registered Succecfully.");
-                    }
+                    ModelState.AddModelError(error.Code, error.Description);
                 }
+                return ValidationProblem(ModelState);
             }
-            return BadRequest("Something went wrong!");
+
+            //Self-registration always gets the lowest role; higher roles are granted by an Admin (UsersController)
+            IdentityResult roleResult;
+            try
+            {
+                roleResult = await userManager.AddToRoleAsync(identityUser, RoleNames.Reader);
+            }
+            catch
+            {
+                //Identity throws when the role row does not exist; do not leave a user nobody can log in as
+                await userManager.DeleteAsync(identityUser);
+                throw;
+            }
+
+            if (!roleResult.Succeeded)
+            {
+                await userManager.DeleteAsync(identityUser);
+                throw new InvalidOperationException(
+                    $"Could not assign role '{RoleNames.Reader}': " +
+                    string.Join("; ", roleResult.Errors.Select(e => e.Description)));
+            }
+
+            return Ok("User was registered successfully.");
         }
 
         //Post; /api/Auth/Login

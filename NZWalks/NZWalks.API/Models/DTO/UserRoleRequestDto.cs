@@ -3,15 +3,15 @@ using System.Text.Json.Serialization;
 
 namespace NZWalks.API.Models.DTO
 {
-    //Disallow: a client still sending the removed "roles" field gets a 400 instead of a silent Reader account
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-    public class RegisterRequestDto
+    public class UserRoleRequestDto
     {
         [Required]
         [EmailAddress]
         public string Email { get; set; }
+
+        //Checked against RoleNames.All in the controller so the error can list the valid values
         [Required]
-        [DataType(DataType.Password)]
-        public string Password { get; set; }
+        public string Role { get; set; }
     }
 }

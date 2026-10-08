@@ -35,6 +35,14 @@ string RequireSecret(string key)
 RequireSecret("ConnectionStrings:NZWalksConnectionString");
 RequireSecret("ConnectionStrings:NZWalksAuthConnectionString");
 
+// Token lifetime is not a secret, but a missing value binds to 0 and would mint tokens that are
+// already expired, so fail at startup like the secrets above.
+if (builder.Configuration.GetValue<int>("Jwt:ExpiryMinutes") <= 0)
+{
+    throw new InvalidOperationException(
+        "Missing or invalid configuration value 'Jwt:ExpiryMinutes'. It must be a positive number of minutes.");
+}
+
 // Add services to the container.
 var logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -138,7 +146,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
         ValidAudience = builder.Configuration["Jwt:Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(jwtKey))
+            Encoding.UTF8.GetBytes(jwtKey)),
+        //Tokens are only ever signed with HS256 (TokenRepository), so reject any other alg
+        ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 },
+        //One process issues and validates on one clock, so the default 5-minute grace past exp is not needed
+        ClockSkew = TimeSpan.Zero
     });
 
 
