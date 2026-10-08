@@ -2,7 +2,7 @@
 
 This is a snapshot of real issues found while mapping the current codebase (see [01-PROJECT-STRUCTURE.md](./01-PROJECT-STRUCTURE.md) and [02-MIDDLEWARE-PIPELINE.md](./02-MIDDLEWARE-PIPELINE.md)). None of these are production incidents — the app isn't in production yet — but they should be addressed **before or while** scaling up, since several of them get more expensive to fix the longer they're left (naming, project layout) and others are silent correctness bugs a new feature could easily trip over (the error-id bug, the role-assignment bug).
 
-Nothing in this document has been fixed yet — it's a punch list for upcoming work, not a changelog.
+This is a punch list for upcoming work, not a changelog. Entries that have since been fixed are marked **RESOLVED** with the date and a pointer to what replaced them; the text beneath such a heading is kept as the record of what was found.
 
 ## Bugs
 
@@ -24,11 +24,12 @@ Nothing in this document has been fixed yet — it's a punch list for upcoming w
 **Why it matters:** cosmetic, but it's user (developer/support)-facing text that will get quoted in bug reports and screenshots.
 **Suggested direction:** fix the spelling; consider whether this message should be configurable/localizable long-term.
 
-### 9. `AuthController.Register` silently drops all but the first role
+### 9. `AuthController.Register` silently drops all but the first role — **RESOLVED 2026-10-08**
 **File:** `NZWalks.API/Controllers/AuthController.cs`
-**Current behavior:** `registerRequestDto.Roles` accepts a list, but only `Roles[0]` is ever passed to `userManager.AddToRoleAsync`.
-**Why it matters:** if a client submits `["Writer", "Admin"]` expecting both roles, `Admin` (or whichever isn't index 0) is silently discarded with no error — the caller has no way to know the request was only partially honored.
-**Suggested direction:** loop over `Roles` and call `AddToRoleAsync` for each, or use `AddToRolesAsync(user, roles)`.
+**Current behavior (as found):** `registerRequestDto.Roles` accepted a list, but only `Roles[0]` was ever passed to `userManager.AddToRoleAsync`.
+**Why it mattered:** the dropped roles were the smaller problem. The caller chose their own role, so `"roles":["Admin"]` produced an Admin token and every `[Authorize(Roles=…)]` was decorative.
+**The suggested fix was wrong:** looping over `Roles` or using `AddToRolesAsync` would still have honoured client-supplied roles — it fixes "only the first role is applied" and keeps "the caller picks their roles".
+**Resolution:** `Roles` was removed from `RegisterRequestDto`; Register always assigns Reader, and an unknown JSON member such as `roles` is a 400. Roles are granted and revoked only by an Admin through `UsersController` (see [ADR-0004](./decisions.md#adr-0004--roles-are-granted-only-by-an-admin)). Register now also returns Identity's own error messages as a 400 problem+json instead of the plain string "Something went wrong!".
 
 ## Security / Config Gaps
 
@@ -38,13 +39,15 @@ Nothing in this document has been fixed yet — it's a punch list for upcoming w
 **Why it matters:** as soon as a browser-based frontend (a separate origin — different port/host) tries to call this API directly from JavaScript, every request will be blocked by the browser's same-origin policy. This is invisible today because nothing browser-based is calling the API yet.
 **Suggested direction:** decide the allowed origin(s) for the eventual frontend and add an explicit named CORS policy (avoid `AllowAnyOrigin()` combined with credentials/auth headers).
 
-### 8. `WalksController` and `ImagesController` have no role-based authorization
+### 8. `WalksController` and `ImagesController` have no role-based authorization — **STILL OPEN**
+Not touched by the JWT hardening work. Roles now mean something (Register can no longer mint an Admin), but they only protect `RegionsController` and `UsersController` until this lands.
 **Files:** `NZWalks.API/Controllers/WalksController.cs`, `NZWalks.API/Controllers/ImagesController.cs`
 **Current behavior:** `RegionsController` consistently applies `[Authorize(Roles="Reader,Admin")]` (reads) / `[Authorize(Roles="Writer,Admin")]` (writes). `WalksController` and `ImagesController` have no `[Authorize]` attributes at all — every action on them is currently reachable anonymously.
 **Why it matters:** this looks like an oversight rather than an intentional public API surface, given the pattern established on `RegionsController`. As-is, anyone can create/update/delete walks or upload images without authenticating.
 **Suggested direction:** decide the intended access policy per action (likely mirroring `RegionsController`'s Reader/Writer/Admin split) and apply it consistently.
 
-### 11. `Jwt:ExpiryMinutes` is configured but never read
+### 11. `Jwt:ExpiryMinutes` is configured but never read — **RESOLVED 2026-10-08**
+**Resolution:** `TokenRepository` now reads `Jwt:ExpiryMinutes` (set to 15) and uses `DateTime.UtcNow`; `Program.cs` refuses to start when the value is missing or not positive; `ClockSkew` is zero. See [ADR-0005](./decisions.md#adr-0005--token-lifetime-and-clock-skew). The text below describes the state when the finding was written.
 **Files:** `NZWalks.API/appsettings.json`, `NZWalks.API/Respositries/TokenRepository.cs`, `NZWalks.API/Program.cs`
 **Current behavior:** `appsettings.json` defines a `Jwt:ExpiryMinutes` key, but neither `Program.cs` nor `TokenRepository` reads it — token expiry is therefore either hardcoded elsewhere or not being set from configuration at all.
 **Why it matters:** dead configuration is misleading — anyone tuning token lifetime by editing `appsettings.json` will see no effect and won't know why.
@@ -90,6 +93,6 @@ Nothing in this document has been fixed yet — it's a punch list for upcoming w
 | 6 | Naming | Low | `Models/Pagination Result/` |
 | 7 | Structural | High (design decision, not a quick fix) | whole solution |
 | 8 | Security | High | `WalksController.cs`, `ImagesController.cs` |
-| 9 | Bug | Medium | `Controllers/AuthController.cs` |
+| 9 | Bug | Medium — **resolved 2026-10-08** | `Controllers/AuthController.cs` |
 | 10 | Structural | High (only matters once scaling horizontally) | `Respositries/LocalImageRepository.cs` |
-| 11 | Config | Low | `appsettings.json`, `Respositries/TokenRepository.cs` |
+| 11 | Config | Low — **resolved 2026-10-08** | `appsettings.json`, `Respositries/TokenRepository.cs` |

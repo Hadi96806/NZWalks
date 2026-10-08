@@ -51,7 +51,7 @@ dotnet ef migrations add "<Name>" --project NZWalks.API --context NZWalksAuthDbC
 dotnet ef database update --project NZWalks.API --context NZWalksAuthDbContext
 ```
 
-Connection strings (`NZWalksConnectionString`, `NZWalksAuthConnectionString`) are in `appsettings.json` and point at a local SQL Server (`Server=.`) with `sa` credentials.
+Connection strings (`NZWalksConnectionString`, `NZWalksAuthConnectionString`) and `Jwt:Key` live in **user-secrets** (`UserSecretsId` in the csproj); `appsettings.json` holds empty placeholders, and `Program.cs` fails at startup naming any that are missing. They point at a local SQL Server (`Server=.`) as the scoped `nzwalks_app` login. user-secrets only load in `Development`. Set one with `dotnet user-secrets set "<key>" "<value>" --project NZWalks.API` (ADR-0003).
 
 ## Architecture
 
@@ -66,7 +66,7 @@ Everything is wired in `Program.cs`; there is no extensions/startup-module layer
 
 ### Cross-cutting pieces
 
-- **Auth**: JWT bearer, config under `Jwt:` in `appsettings.json`. `AuthController` registers/logs in via `UserManager<IdentityUser>`; login only succeeds if the user has at least one role. Endpoints are gated with `[Authorize(Roles="Reader,Admin")]` / `"Writer,Admin"` — currently only on `RegionsController`; `Walks` and `Images` are open.
+- **Auth**: JWT bearer, config under `Jwt:` (`Issuer`/`Audience`/`ExpiryMinutes` in `appsettings.json`, `Jwt:Key` in user-secrets). Tokens live 15 minutes (`Jwt:ExpiryMinutes`), `ClockSkew` is zero, HS256 only, and carry `sub`/`jti`/`iat`. `AuthController` registers/logs in via `UserManager<IdentityUser>`; **Register always assigns Reader and rejects a body containing `roles`** — it never takes roles from the client (ADR-0004). Login only succeeds if the user has at least one role. Roles are granted/revoked only by an Admin through `UsersController` (`POST api/Users/GrantRole` / `RevokeRole`, class-level `[Authorize(Roles = RoleNames.Admin)]`; role names live in `Constants/RoleNames.cs`). The first Admin is inserted via SQL. A role change shows up at the user's next login. Endpoints are gated with `[Authorize(Roles="Reader,Admin")]` / `"Writer,Admin"` — currently only on `RegionsController` and `UsersController`; `Walks` and `Images` are open (finding #8).
 - **Validation**: `[ValidateModel]` (`CustomActionFilter/ValidateModelAttribute.cs`) short-circuits invalid `ModelState` with a 400 before the action body runs. Apply it to new POST/PUT actions rather than hand-checking `ModelState`.
 - **Errors**: `Middlewares/ExceptionHandlerMiddleware` catches everything, logs it, and returns a generic 500 payload. Registered before `UseHttpsRedirection`.
 - **Logging**: Serilog configured inline in `Program.cs` — console + rolling daily file at `NZWalks.API/Logs/NZWalksLog.txt` (gitignored output; the `Logs\` folder is kept via the csproj `<Folder>` item).
@@ -77,7 +77,7 @@ Everything is wired in `Program.cs`; there is no extensions/startup-module layer
 `Asp.Versioning` is enabled with default v1.0 assumed when unspecified, and `ConfigureSwaggerOptions` generates one Swagger doc per discovered version. Routing is **inconsistent by design of how it grew**:
 
 - `RegionsController` is versioned: route `api/v{version:apiVersion}/[controller]`, declares `[ApiVersion(1.0)]` + `[ApiVersion(2.0)]`, and splits `GetAllV1`/`GetAllV2` with `[MapToApiVersion]` returning `RegionDtoV1` vs `RegionDtoV2`.
-- `Walks`, `Images`, `Auth` use the unversioned `api/[controller]` route.
+- `Walks`, `Images`, `Auth`, `Users` use the unversioned `api/[controller]` route.
 
 When adding a versioned action, add the matching DTO + AutoMapper map, and remember Swagger picks up new versions automatically from the attributes.
 

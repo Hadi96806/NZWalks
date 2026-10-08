@@ -30,6 +30,8 @@ ones that are inconvenient. An entry that lists only upsides is not finished.
 | [0001](#adr-0001--validation-strategy) | Validation strategy: FluentValidation or data annotations | Open | 2026-09-30 |
 | [0002](#adr-0002--solution-layout-for-testability) | Solution layout for testability | Accepted | 2026-10-04 |
 | [0003](#adr-0003--handling-of-secrets-already-in-git-history) | Handling of secrets already in git history | Accepted | 2026-09-30 |
+| [0004](#adr-0004--roles-are-granted-only-by-an-admin) | Roles are granted only by an Admin | Accepted | 2026-10-08 |
+| [0005](#adr-0005--token-lifetime-and-clock-skew) | Token lifetime and clock skew | Accepted | 2026-10-08 |
 
 ---
 
@@ -155,3 +157,84 @@ Option 3 is not viable — it leaves live credentials exposed for five more week
   real rather than cosmetic.
 - A history rewrite stays possible later, but it rewrites every commit hash and needs
   coordinating with any clone — worth its own decision rather than being folded into this one.
+
+---
+
+## ADR-0004 — Roles are granted only by an Admin
+
+**Status:** Accepted · **Date:** 2026-10-08
+
+### Context
+
+`POST /api/Auth/Register` is anonymous and used to take a `Roles` array from the request body,
+assigning `Roles[0]`. Anyone could register as Admin, log in, and pass every
+`[Authorize(Roles=…)]` check (finding #9, which understated this). The question is who is allowed
+to decide a user's role.
+
+### Options
+
+1. **Keep client-supplied roles** and validate them against a list — still lets the caller pick.
+2. **Register assigns the lowest role; an Admin grants more** through an authenticated endpoint.
+3. **Seed one Admin at startup** from configuration, and grant the rest from there.
+
+### Decision
+
+**Option 2.** Register always assigns Reader and rejects a request that still sends `roles`
+(`[JsonUnmappedMemberHandling(Disallow)]`). `UsersController` is guarded at class level by
+`[Authorize(Roles = Admin)]` and exposes `GrantRole` and `RevokeRole`; both are idempotent,
+validate the role against `RoleNames.All`, return 404 for an unknown user, and write an audit line
+(who changed whose role). `RevokeRole` refuses to remove a user's last role (Login rejects a user
+with none) and the last Admin, both with 409.
+
+The **first Admin comes from SQL**, not code: one `AspNetUserRoles` row using the seeded Admin
+role id. Option 3 was rejected because it puts an admin credential in configuration or in a
+startup path that runs on every launch.
+
+### Consequences
+
+- There is no way to create an Admin through the API from nothing. Recovering from "no Admin
+  left" is a SQL insert; the last-Admin check exists to make that rare, but it is not atomic, so
+  two simultaneous revokes could still remove both.
+- A role change takes effect at the user's **next login**. Roles are baked into the JWT, so a
+  demoted user keeps the old role until the token expires — at most 15 minutes (ADR-0005). There
+  is no revocation list; `jti` is in the token as the hook for one.
+- The role list lives in `RoleNames` and must match the roles seeded in `NZWalksAuthDbContext`.
+  Adding a role means touching both.
+- Roles still only protect `RegionsController` and `UsersController` until finding #8 is closed.
+
+---
+
+## ADR-0005 — Token lifetime and clock skew
+
+**Status:** Accepted · **Date:** 2026-10-08
+
+### Context
+
+Tokens lived a hard-coded 20 minutes, `Jwt:ExpiryMinutes` was never read (finding #11), and
+the validator's default `ClockSkew` of 5 minutes let an expired token keep working for ~25
+minutes in total. With no revocation, token lifetime is the only bound on a stolen or stale token.
+
+### Options
+
+1. **Short access token, no refresh token** — simple; the user logs in again every 15 minutes.
+2. **Short access token plus refresh tokens** — better experience, but needs a hashed token table,
+   rotation with reuse detection and a revoke endpoint.
+3. **Keep the longer lifetime.**
+
+### Decision
+
+**Option 1: 15 minutes, `ClockSkew = TimeSpan.Zero`.** The lifetime comes from `Jwt:ExpiryMinutes`
+(default 15) and `Program.cs` refuses to start if it is missing or not positive. Skew can be zero
+because one process issues and validates against one clock. Issued tokens carry `sub`, `jti` and
+`iat`, and the validator accepts only HS256.
+
+**Refresh tokens are deferred**, not rejected: there is no client yet to hold one, and doing it
+properly is larger than the rest of this work combined.
+
+### Consequences
+
+- A user must log in again every 15 minutes. Fine for Swagger and tests; it will need refresh
+  tokens once a real client exists.
+- If tokens are ever validated by a different service, zero skew will reject tokens from a slightly
+  fast issuer; revisit then.
+- Role and account changes lag by up to 15 minutes (ADR-0004).
