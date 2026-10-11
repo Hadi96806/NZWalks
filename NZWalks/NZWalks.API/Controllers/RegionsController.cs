@@ -65,14 +65,14 @@ namespace NZWalks.API.Controllers
 
         //Get Region By Id
         [HttpGet]
-        [Route("id:Guid")]
+        [Route("{id:Guid}")]
         [Authorize(Roles ="Reader,Admin")]
         public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken) {
             //var region = dbContext.Regions.FirstOrDefault(x=>x.Id==id);
             var region = await regionRepositry.GetByIdAsync(id, cancellationToken);
             if (region == null)
             {
-                return NotFound();
+                return Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Region with id {id} was not found.");
             }
             var regionDto = mapper.Map<RegionDtoV1>(region);
             return Ok(regionDto); 
@@ -83,20 +83,13 @@ namespace NZWalks.API.Controllers
         [ValidateModel]
         [Authorize(Roles = "Writer,Admin")]
         public async Task<IActionResult> Create(AddRegionDto addRegionDto, CancellationToken cancellationToken) {
-            if(ModelState.IsValid)
-            {
-                var regionDomainModal = mapper.Map<Region>(addRegionDto);
+            var regionDomainModal = mapper.Map<Region>(addRegionDto);
 
-                await regionRepositry.CreateAsync(regionDomainModal, cancellationToken);
+            await regionRepositry.CreateAsync(regionDomainModal, cancellationToken);
 
-                var regionDto = mapper.Map<RegionDtoV1>(regionDomainModal);
+            var regionDto = mapper.Map<RegionDtoV1>(regionDomainModal);
 
-                return CreatedAtAction(nameof(GetById), new { id = regionDto.Id }, regionDto);
-            }
-            else
-            {
-                return BadRequest();
-            }
+            return CreatedAtAction(nameof(GetById), new { id = regionDto.Id }, regionDto);
         }
 
         //Update Region
@@ -111,7 +104,7 @@ namespace NZWalks.API.Controllers
             var regionDomainModel = await regionRepositry.UpdateAsync(id, updateRegion, cancellationToken);
             if (regionDomainModel == null)
             {
-                return NotFound();
+                return Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Region with id {id} was not found.");
             }
 
             var regionDto = mapper.Map<RegionDtoV1>(regionDomainModel);
@@ -128,7 +121,7 @@ namespace NZWalks.API.Controllers
             var regionDomainModel = await regionRepositry.DeleteAsync(id, cancellationToken);
             if(regionDomainModel == null)
             {
-                return NotFound();
+                return Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Region with id {id} was not found.");
             }
          
             var regionDto = mapper?.Map<RegionDtoV1>(regionDomainModel);

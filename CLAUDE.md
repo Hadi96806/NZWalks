@@ -13,7 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - [docs/00-OVERVIEW.md](docs/00-OVERVIEW.md) — start here; explains the doc set and the reading order.
 - [docs/01-PROJECT-STRUCTURE.md](docs/01-PROJECT-STRUCTURE.md) — folder tree and why the layout is what it is.
 - [docs/02-MIDDLEWARE-PIPELINE.md](docs/02-MIDDLEWARE-PIPELINE.md) — `Program.cs` DI and pipeline order, with a worked request traversal.
-- [docs/03-FINDINGS-AND-TECH-DEBT.md](docs/03-FINDINGS-AND-TECH-DEBT.md) — known bugs and debt, numbered #1–#11. A snapshot from 2026-08-03: check a finding is still live before acting on it.
+- [docs/03-FINDINGS-AND-TECH-DEBT.md](docs/03-FINDINGS-AND-TECH-DEBT.md) — known bugs and debt, numbered #1–#12. A snapshot from 2026-08-03: check a finding is still live before acting on it.
 - [docs/04-appendix-glossary.md](docs/04-appendix-glossary.md) — terms used across the set.
 - [docs/decisions.md](docs/decisions.md) — architecture decision log. Record a choice here when it closes off an alternative someone could reasonably have picked; check it before reversing something that looks arbitrary.
 

@@ -43,7 +43,7 @@ namespace NZWalks.API.Controllers
 
                 return Ok(imageDomainModel);
             }
-            return BadRequest(ModelState);
+            return ValidationProblem(ModelState);
         }
 
         private void ValidateFileUpload(ImageUploadDto img)

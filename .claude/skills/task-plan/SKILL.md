@@ -20,7 +20,7 @@ Be fast: read only what this action needs. Be smart: verify in the code, never f
 | Conventions, commands | `CLAUDE.md` (repo root) |
 | Structure | `docs/01-PROJECT-STRUCTURE.md` |
 | Pipeline / DI order | `docs/02-MIDDLEWARE-PIPELINE.md` |
-| Findings #1–#11 | `docs/03-FINDINGS-AND-TECH-DEBT.md` — a 2026-08-03 snapshot, re-check every finding |
+| Findings #1–#12 | `docs/03-FINDINGS-AND-TECH-DEBT.md` — a 2026-08-03 snapshot, re-check every finding |
 | Glossary | `docs/04-appendix-glossary.md` |
 | Decision log | `docs/decisions.md` |
 | Scheduled plans | `docs/plans/*.md` (local, gitignored) + Notion: Claude Mastery → 14 weeks Program → Week N |

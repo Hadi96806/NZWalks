@@ -44,7 +44,7 @@ namespace NZWalks.API.Controllers
 
             if(walk == null)
             {
-                return NotFound();
+                return Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Walk with id {id} was not found.");
             }
             //Map WalkDomainModal to walkDto
             var walkDto = mapper.Map<WalkDto>(walk);
@@ -78,7 +78,7 @@ namespace NZWalks.API.Controllers
             var updatedWalk = await walkRepository.UpdateAsync(id, walkDomainModal, cancellationToken);
 
             if(updatedWalk == null)
-                return NotFound();
+                return Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Walk with id {id} was not found.");
 
             var updatedWalkDto = mapper.Map<WalkDto>(updatedWalk);
 
@@ -92,7 +92,7 @@ namespace NZWalks.API.Controllers
         {
             var walkToDelete = await walkRepository.DeleteAsync(id, cancellationToken);
             if(walkToDelete == null)
-                return NotFound();
+                return Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Walk with id {id} was not found.");
 
             var waltDto = mapper.Map<WalkDto>(walkToDelete);
             return Ok(waltDto);
