@@ -37,7 +37,16 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 **Why it mattered:** a wrong 404 tells the client a record does not exist when it does, and every create handed back a broken link.
 **Resolution:** `[Route("{id:Guid}")]`, matching `Update` and `Delete`. Fixed as part of the consistent-error-responses work, which also moved the Images upload 400 to `ValidationProblem`, removed the unreachable `else { return BadRequest(); }` in `Regions.Create`, and gave the Regions/Walks 404s a `detail` naming the id.
 
-## Security / Config Gaps
+### 13. Bad client input could cause a 500, and reference errors lost their field list — **RESOLVED 2026-10-11**
+**Files:** `NZWalks.API/Controllers/WalksController.cs`, `Controllers/ImagesController.cs`, `Middlewares/ExceptionHandlerMiddleware.cs`
+**Current behavior (as found):**
+- `GET /api/Walks?pageSize=0` divided by zero and `?pageNumber=0` sent a negative OFFSET to SQL — both 500. `pageSize` had no upper bound.
+- `POST /api/Images/Upload` with no file threw a `NullReferenceException` in the hand-written check — 500. The extension check was case-sensitive (`.JPG` rejected).
+- `InvalidReferenceException` built a `ValidationProblemDetails`, but `WriteAsJsonAsync` serialized it as its static type `ProblemDetails`, so the `errors` list naming the missing `RegionId`/`DifficultyId` never reached the client.
+**Why it mattered:** a 500 for a client mistake tells the caller the server is broken and hides what to fix; a 400 without `errors` gives no field to fix.
+**Resolution:** FluentValidation (ADR-0001) — `WalkQueryDto` + validator (`pageNumber ≥ 1`, `pageSize` 1–100, allowed filter/sort names) and `ImageUploadDtoValidator` (file required, any-case extension). The middleware now serializes with the runtime type, and maps `ValidationException` to the same 400 shape.
+
+
 
 ### 4. No CORS policy configured
 **Files:** `NZWalks.API/Program.cs` (absence of `AddCors`/`UseCors`)
@@ -103,3 +112,4 @@ Not touched by the JWT hardening work. Roles now mean something (Register can no
 | 10 | Structural | High (only matters once scaling horizontally) | `Respositries/LocalImageRepository.cs` |
 | 11 | Config | Low — **resolved 2026-10-08** | `appsettings.json`, `Respositries/TokenRepository.cs` |
 | 12 | Bug | Medium — **resolved 2026-10-11** | `Controllers/RegionsController.cs` |
+| 13 | Bug | Medium — **resolved 2026-10-11** | `WalksController.cs`, `ImagesController.cs`, `ExceptionHandlerMiddleware.cs` |

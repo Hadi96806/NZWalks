@@ -1,5 +1,7 @@
-using Asp.Versioning;
+﻿using Asp.Versioning;
 using Asp.Versioning.ApiExplorer;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -54,8 +56,18 @@ builder.Logging.ClearProviders();
 builder.Logging.AddSerilog(logger);
 
 
-builder.Services.AddControllers();
+//FluentValidation owns "required": without this, a non-nullable string that is missing also gets
+//MVC's implicit "The X field is required." on top of the validator's message
+builder.Services.AddControllers(options =>
+    options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true);
 builder.Services.AddProblemDetails();
+
+//Every AbstractValidator<T> in this assembly is registered; auto-validation feeds failures into ModelState,
+//so [ApiController] returns its usual 400 ValidationProblemDetails. Rules must stay synchronous.
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+builder.Services.AddFluentValidationAutoValidation();
+//Stop at a field's first failing rule: an empty Name reports "must not be empty", not that plus a length error
+ValidatorOptions.Global.DefaultRuleLevelCascadeMode = CascadeMode.Stop;
 
 builder.Services.AddApiVersioning(options =>
 {

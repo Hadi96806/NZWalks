@@ -13,7 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - [docs/00-OVERVIEW.md](docs/00-OVERVIEW.md) — start here; explains the doc set and the reading order.
 - [docs/01-PROJECT-STRUCTURE.md](docs/01-PROJECT-STRUCTURE.md) — folder tree and why the layout is what it is.
 - [docs/02-MIDDLEWARE-PIPELINE.md](docs/02-MIDDLEWARE-PIPELINE.md) — `Program.cs` DI and pipeline order, with a worked request traversal.
-- [docs/03-FINDINGS-AND-TECH-DEBT.md](docs/03-FINDINGS-AND-TECH-DEBT.md) — known bugs and debt, numbered #1–#12. A snapshot from 2026-08-03: check a finding is still live before acting on it.
+- [docs/03-FINDINGS-AND-TECH-DEBT.md](docs/03-FINDINGS-AND-TECH-DEBT.md) — known bugs and debt, numbered #1–#13. A snapshot from 2026-08-03: check a finding is still live before acting on it.
 - [docs/04-appendix-glossary.md](docs/04-appendix-glossary.md) — terms used across the set.
 - [docs/decisions.md](docs/decisions.md) — architecture decision log. Record a choice here when it closes off an alternative someone could reasonably have picked; check it before reversing something that looks arbitrary.
 
@@ -57,7 +57,7 @@ Connection strings (`NZWalksConnectionString`, `NZWalksAuthConnectionString`) an
 
 **Controller → AutoMapper → Repository → EF Core DbContext.** Controllers never touch a DbContext directly; they map DTO ↔ domain model and delegate to an interface from `Respositries/` (note the misspelled folder/namespace `NZWalks.API.Respositries` — keep it consistent when adding files there).
 
-- `Models/Domain/` — EF entities (`Region`, `Walk`, `Difficulty`, `Image`). `Models/DTO/` — request/response shapes; validation lives here as data annotations.
+- `Models/Domain/` — EF entities (`Region`, `Walk`, `Difficulty`, `Image`). `Models/DTO/` — request/response shapes, with no validation attributes. `Validators/` — one FluentValidation `AbstractValidator<TDto>` per request DTO (ADR-0001).
 - `Mappings/AutoMapperProfiles.cs` — every DTO↔domain map is registered in this one profile. A new DTO needs an entry here or mapping silently produces empty objects.
 - `Respositries/` — `IRegionRespository`/`SQLRegionRepository`, `IWalkRepository`/`SQLWalkRepository`, `ITokenRepository`/`TokenRepository` (JWT minting), `IImageRepository`/`LocalImageRepository` (writes to disk). All registered `AddScoped` in `Program.cs`.
 - `Data/` — `NZWalksDbContext` (domain, seeds 3 difficulties + 6 regions by hard-coded GUIDs in `OnModelCreating`) and `NZWalksAuthDbContext : IdentityDbContext` (seeds `Reader`/`Writer`/`Admin` roles by hard-coded IDs).
@@ -67,7 +67,7 @@ Everything is wired in `Program.cs`; there is no extensions/startup-module layer
 ### Cross-cutting pieces
 
 - **Auth**: JWT bearer, config under `Jwt:` (`Issuer`/`Audience`/`ExpiryMinutes` in `appsettings.json`, `Jwt:Key` in user-secrets). Tokens live 15 minutes (`Jwt:ExpiryMinutes`), `ClockSkew` is zero, HS256 only, and carry `sub`/`jti`/`iat`. `AuthController` registers/logs in via `UserManager<IdentityUser>`; **Register always assigns Reader and rejects a body containing `roles`** — it never takes roles from the client (ADR-0004). Login only succeeds if the user has at least one role. Roles are granted/revoked only by an Admin through `UsersController` (`POST api/Users/GrantRole` / `RevokeRole`, class-level `[Authorize(Roles = RoleNames.Admin)]`; role names live in `Constants/RoleNames.cs`). The first Admin is inserted via SQL. A role change shows up at the user's next login. Endpoints are gated with `[Authorize(Roles="Reader,Admin")]` / `"Writer,Admin"` — currently only on `RegionsController` and `UsersController`; `Walks` and `Images` are open (finding #8).
-- **Validation**: `[ValidateModel]` (`CustomActionFilter/ValidateModelAttribute.cs`) short-circuits invalid `ModelState` with a 400 before the action body runs. Apply it to new POST/PUT actions rather than hand-checking `ModelState`.
+- **Validation**: FluentValidation auto-validation (`Program.cs`) runs the DTO's validator before the action; failures land in `ModelState` and `[ApiController]` returns a 400 `ValidationProblemDetails`. A new request DTO — body or `[FromQuery]` class — needs a validator in `Validators/`, or it is accepted unchecked. Rules must be synchronous (no DB lookups; reference existence is checked in the repository). Don't hand-check `ModelState` in actions. Every 400 with field errors uses the same `errors` shape, including `ValidationException` and `InvalidReferenceException`, which `ExceptionHandlerMiddleware` maps.
 - **Errors**: `Middlewares/ExceptionHandlerMiddleware` catches everything, logs it, and returns a generic 500 payload. Registered before `UseHttpsRedirection`.
 - **Logging**: Serilog configured inline in `Program.cs` — console + rolling daily file at `NZWalks.API/Logs/NZWalksLog.txt` (gitignored output; the `Logs\` folder is kept via the csproj `<Folder>` item).
 - **Images**: uploads are written to `NZWalks.API/Images/` (the directory must exist — `LocalImageRepository` does not create it) and served back as static files under the `/Images` request path.

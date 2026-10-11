@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using NZWalks.API.CustomActionFilter;
 using NZWalks.API.Data;
 using NZWalks.API.Models.Domain;
 using NZWalks.API.Models.DTO;
@@ -80,7 +79,6 @@ namespace NZWalks.API.Controllers
 
         //Create New Region
         [HttpPost]
-        [ValidateModel]
         [Authorize(Roles = "Writer,Admin")]
         public async Task<IActionResult> Create(AddRegionDto addRegionDto, CancellationToken cancellationToken) {
             var regionDomainModal = mapper.Map<Region>(addRegionDto);
@@ -95,7 +93,6 @@ namespace NZWalks.API.Controllers
         //Update Region
         [HttpPut]
         [Route("{id:Guid}")]
-        [ValidateModel]
         [Authorize(Roles = "Writer,Admin")]
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateRegionDto updateRegionDto, CancellationToken cancellationToken)
         {
