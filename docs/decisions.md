@@ -186,8 +186,8 @@ validate the role against `RoleNames.All`, return 404 for an unknown user, and w
 (who changed whose role). `RevokeRole` refuses to remove a user's last role (Login rejects a user
 with none) and the last Admin, both with 409.
 
-The **first Admin comes from SQL**, not code: one `AspNetUserRoles` row using the seeded Admin
-role id. Option 3 was rejected because it puts an admin credential in configuration or in a
+The **first Admin comes from SQL**, not code ([runbook](./05-RUNBOOK-FIRST-ADMIN.md)): one
+`AspNetUserRoles` row using the seeded Admin role id. Option 3 was rejected because it puts an admin credential in configuration or in a
 startup path that runs on every launch.
 
 ### Consequences
