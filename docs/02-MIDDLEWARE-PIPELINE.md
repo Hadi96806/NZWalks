@@ -71,7 +71,7 @@ sequenceDiagram
     AN->>AZ: HttpContext.User populated
     AZ->>AZ: check endpoint's [Authorize] requirement (WalksController has none currently)
     AZ->>R: authorized, route to WalksController.Create
-    R->>R: [ValidateModel] checks ModelState
+    R->>R: FluentValidation validates AddWalkDto (invalid → 400 ProblemDetails)
     R->>DB: IWalkRepository.CreateAsync(walk)
     DB-->>R: created Walk entity
     R->>R: IMapper maps Walk -> WalkDto
@@ -92,7 +92,7 @@ sequenceDiagram
 4. **`UseStaticFiles`** checks whether the request path starts with `/Images`. It doesn't (`/api/Walks`), so this middleware is a no-op pass-through.
 5. **`UseAuthentication`** reads the `Authorization` header, validates the JWT (issuer, audience, lifetime, signing key against `Jwt:Key`), and — if valid — populates `HttpContext.User` with the claims embedded in the token (email + role, per `TokenRepository`).
 6. **`UseAuthorization`** checks the matched endpoint's authorization requirements against `HttpContext.User`. `WalksController` currently has no `[Authorize]` attribute at all (see finding #8), so any authenticated *or unauthenticated* request passes this stage for `/api/Walks`.
-7. **Routing** dispatches to `WalksController.Create`. The `[ValidateModel]` action filter checks `ModelState` first and short-circuits with `400 Bad Request` if the `AddWalkDto` fails validation.
+7. **Routing** dispatches to `WalksController.Create`. FluentValidation's auto-validation (`AddWalkDtoValidator`) runs during model binding and records any failures in `ModelState`; `[ApiController]`'s built-in filter then short-circuits with a `400` `ValidationProblemDetails` (`application/problem+json`) if the `AddWalkDto` is invalid.
 8. The controller calls `IWalkRepository.CreateAsync`, which `SQLWalkRepository` fulfills against `NZWalksDbContext`.
 9. `IMapper` maps the resulting `Walk` entity to a `WalkDto`, and the controller returns `201 Created`.
 10. The response bubbles back up through the same middleware stack in reverse — each middleware gets a chance to inspect/modify the outgoing response — until Kestrel sends it to the client.
@@ -101,7 +101,7 @@ sequenceDiagram
 
 - **Missing/invalid/expired JWT:** `UseAuthentication` simply fails to populate `HttpContext.User` (or populates it as unauthenticated) — the request still proceeds to `UseAuthorization`. If the target action requires `[Authorize]`, authorization rejects it with `401 Unauthorized` (no token) or `403 Forbidden` (valid token, wrong role) *before* the controller action ever runs. Since `WalksController` has no `[Authorize]` today, this specific example wouldn't actually be rejected — see finding #8.
 - **Controller throws an unhandled exception** (e.g. a database connectivity failure in `SQLWalkRepository`): the exception propagates up through routing, authorization, authentication, and static files, and is caught by `ExceptionHandlerMiddleware`'s `catch` block. It logs the exception via `ILogger` and writes a `500` JSON response `{ Id, ErrorMessage }` — though see finding #1, the `Id` is currently always `Guid.Empty` rather than a unique correlation id.
-- **`ModelState` invalid** (e.g. missing required field on `AddWalkDto`): `[ValidateModel]` short-circuits with `400 Bad Request` before the repository is ever called — this happens *inside* the controller/action-filter stage, after all pipeline middleware has already passed the request through.
+- **`ModelState` invalid** (e.g. missing required field on `AddWalkDto`): the `[ApiController]` model-state filter short-circuits with a `400` `ValidationProblemDetails` (listing each failed field) before the repository is ever called — this happens *inside* the controller/action-filter stage, after all pipeline middleware has already passed the request through.
 
 ## 4. JWT / Identity configuration summary
 

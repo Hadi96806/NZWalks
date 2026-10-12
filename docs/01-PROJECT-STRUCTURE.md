@@ -31,9 +31,6 @@ NZWalks.API/
 │   ├── WalksController.cs          # api/Walks — filtered/sorted/paginated CRUD
 │   └── WeatherForecastController.cs # template leftover, unused
 │
-├── CustomActionFilter/
-│   └── ValidateModelAttribute.cs   # ActionFilterAttribute — short-circuits to 400 on invalid ModelState
-│
 ├── Data/                           # EF Core DbContexts — the only place the API talks to SQL Server
 │   ├── NZWalksDbContext.cs         # Regions, Walks, Difficulties, Images — seeds Difficulty/Region data
 │   └── NZWalksAuthDbContext.cs     # IdentityDbContext — seeds Reader/Writer/Admin roles
@@ -80,11 +77,15 @@ NZWalks.API/
 ├── Properties/
 │   └── launchSettings.json
 │
-└── Respositries/                   # Repository pattern — sits between controllers and DbContexts
-    ├── IImageRepository.cs         → LocalImageRepository.cs
-    ├── IRegionRespository.cs       → SQLRegionRepository.cs
-    ├── ITokenRepository.cs         → TokenRepository.cs
-    └── IWalkRepository.cs          → SQLWalkRepository.cs
+├── Respositries/                   # Repository pattern — sits between controllers and DbContexts
+│   ├── IImageRepository.cs         → LocalImageRepository.cs
+│   ├── IRegionRespository.cs       → SQLRegionRepository.cs
+│   ├── ITokenRepository.cs         → TokenRepository.cs
+│   └── IWalkRepository.cs          → SQLWalkRepository.cs
+│
+└── Validators/                     # FluentValidation — one validator per request DTO (ADR-0001)
+    └── *Validator.cs               # AddRegionDto, UpdateRegionDto, AddWalkDto, UpdateWalkDto, ImageUploadDto,
+                                    # LogInRequestDto, RegisterRequestDto, UserRoleRequestDto, WalkQueryDto
 ```
 
 There is no `wwwroot/` folder — static image serving is configured explicitly against the `Images/` folder in `Program.cs` (see 02-MIDDLEWARE-PIPELINE.md).
@@ -99,7 +100,7 @@ There is no `wwwroot/` folder — static image serving is configured explicitly 
 | `WalksController` | `api/Walks` | `GetAll` (filter + sort + pagination), `GetById`, `Create`, `Update`, `Delete` | `IMapper`, `IWalkRepository` |
 | `WeatherForecastController` | template default | unused | — |
 
-Controllers are deliberately thin: they validate input (via `[ValidateModel]`), call a repository, map the result with AutoMapper, and return it. No EF Core or SQL appears in a controller file.
+Controllers are deliberately thin: their request DTOs are validated before the action runs (a FluentValidation validator in `Validators/`, wired by `AddFluentValidationAutoValidation()`), they call a repository, map the result with AutoMapper, and return it. No EF Core or SQL appears in a controller file.
 
 ## 4. Models: Domain vs DTO
 
