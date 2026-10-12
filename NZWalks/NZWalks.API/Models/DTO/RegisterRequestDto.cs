@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
 namespace NZWalks.API.Models.DTO
@@ -7,11 +6,7 @@ namespace NZWalks.API.Models.DTO
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public class RegisterRequestDto
     {
-        [Required]
-        [EmailAddress]
         public string Email { get; set; }
-        [Required]
-        [DataType(DataType.Password)]
         public string Password { get; set; }
     }
 }

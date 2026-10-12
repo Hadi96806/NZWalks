@@ -37,37 +37,57 @@ ones that are inconvenient. An entry that lists only upsides is not finished.
 
 ## ADR-0001 — Validation strategy
 
-**Status:** Open · **Date:** 2026-09-30
+**Status:** Accepted · **Date:** 2026-09-30 · **Accepted:** 2026-10-11
 
 ### Context
 
-Request validation currently lives as data annotations on the write DTOs (`AddRegionDto`,
-`UpdateRegionDto`, `AddWalkDto`, `UpdateWalkDto`), enforced by the `[ValidateModel]` action
-filter. The Week 1 hardening work introduces FluentValidation, which raises the question of
-whether the two coexist.
-
-Running both engines means two places to look when a 400 response is wrong, and two places to
-change when a rule changes.
+Request validation lived as data annotations on the write DTOs, enforced by `[ApiController]`
+(the `[ValidateModel]` filter never ran — `ModelStateInvalidFilter` at order −2000 always
+short-circuited first). Some inputs had no validation at all: `UpdateWalkDto`, the Walks GetAll
+query string (`pageSize=0` / `pageNumber=0` returned 500), and the image upload, whose checks were
+hand-written in the controller. The Week 1 hardening work introduces FluentValidation, which raised
+the question of whether the two engines coexist.
 
 ### Options
 
-1. **Replace** the annotations with FluentValidation on the write DTOs.
+1. **Replace** the annotations with FluentValidation.
 2. **Coexist** — annotations for simple presence and length rules, FluentValidation for anything
    conditional or cross-field.
 3. **Keep annotations** and skip FluentValidation entirely.
 
 ### Decision
 
-_Not yet taken._ Recommended direction: **option 1, scoped to the four write DTOs.** Strip each
-DTO's annotations as its validator lands, so there is exactly one place a validation rule can
-live.
+**Option 1, for every request input**, not only the four write DTOs: Region and Walk add/update,
+a new `WalkQueryDto` for the Walks query string, `ImageUploadDto`, and the three auth DTOs. Every
+`AbstractValidator<T>` lives in `Validators/` and is registered with
+`AddValidatorsFromAssemblyContaining<Program>()` + `AddFluentValidationAutoValidation()`.
+
+Supporting choices:
+- `SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true` — FluentValidation alone
+  owns "required", so a missing field reports one message, not two.
+- `DefaultRuleLevelCascadeMode = CascadeMode.Stop` — a field reports its first failing rule only.
+- Strict 400s, no silent clamping (e.g. `pageSize` 1–100).
+- Identity keeps password complexity; validators only cap the length (128). Login has no format
+  rules so its errors stay generic. Foreign-key existence stays in the repository (validators are
+  synchronous under auto-validation).
+- **One 400 contract:** every 400 with field errors is `ValidationProblemDetails`
+  (`errors: { "<Field>": [...] }`), whether it comes from auto-validation, a hand-called
+  `ValidateAndThrow` (`ValidationException`), or `InvalidReferenceException` — the last two are
+  mapped in `ExceptionHandlerMiddleware`.
+
+Auto-validation is no longer recommended by the FluentValidation authors for new projects because
+it can't run async rules. Accepted here because every rule is synchronous; if a database-backed
+rule is ever needed, switch to a global action filter that calls `ValidateAsync`.
 
 ### Consequences
 
-- Validation rules move out of the DTO and into a class beside it, which is a place to look that
-  newcomers won't guess without this note.
+- Validation rules live in `Validators/`, not on the DTO — a place newcomers won't guess without
+  this note. A new request DTO needs a validator, or it is accepted unchecked.
+- Stricter than before: PUT Walk, lowercase Region codes, Add Region names under 3 characters,
+  non-http image URLs and `pageSize > 100` now return 400. `.JPG` uploads are now accepted.
+- Query string names changed to `filterOn` / `filterQuery` (were `filtertOn` / `filrQuery`).
+- `ValidateModelAttribute` was deleted; `UsersController.InvalidRole` was removed.
 - Rules become unit-testable without hosting — relevant once a test project exists in Week 3.
-- Read DTOs and query parameters are unaffected and keep whatever validation they have.
 
 ---
 

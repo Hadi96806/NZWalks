@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using NZWalks.API.Constants;
@@ -27,11 +27,8 @@ namespace NZWalks.API.Controllers
         [Route("GrantRole")]
         public async Task<IActionResult> GrantRole([FromBody] UserRoleRequestDto request)
         {
+            //UserRoleRequestDtoValidator has already rejected unknown roles; this only fixes the casing
             var role = ResolveRole(request.Role);
-            if (role is null)
-            {
-                return InvalidRole(request.Role);
-            }
 
             var user = await userManager.FindByEmailAsync(request.Email);
             if (user is null)
@@ -65,11 +62,8 @@ namespace NZWalks.API.Controllers
         [Route("RevokeRole")]
         public async Task<IActionResult> RevokeRole([FromBody] UserRoleRequestDto request)
         {
+            //UserRoleRequestDtoValidator has already rejected unknown roles; this only fixes the casing
             var role = ResolveRole(request.Role);
-            if (role is null)
-            {
-                return InvalidRole(request.Role);
-            }
 
             var user = await userManager.FindByEmailAsync(request.Email);
             if (user is null)
@@ -118,16 +112,9 @@ namespace NZWalks.API.Controllers
             return NoContent();
         }
 
-        //Match case-insensitively but return the canonical spelling ("writer" -> "Writer"); null if unknown
-        private static string? ResolveRole(string requested) =>
-            RoleNames.All.FirstOrDefault(r => string.Equals(r, requested, StringComparison.OrdinalIgnoreCase));
-
-        private ActionResult InvalidRole(string requested)
-        {
-            ModelState.AddModelError(nameof(UserRoleRequestDto.Role),
-                $"'{requested}' is not a valid role. Valid roles: {string.Join(", ", RoleNames.All)}.");
-            return ValidationProblem(ModelState);
-        }
+        //Match case-insensitively but return the canonical spelling ("writer" -> "Writer")
+        private static string ResolveRole(string requested) =>
+            RoleNames.All.First(r => string.Equals(r, requested, StringComparison.OrdinalIgnoreCase));
 
         private ActionResult UserNotFound(string email) =>
             Problem(statusCode: StatusCodes.Status404NotFound,

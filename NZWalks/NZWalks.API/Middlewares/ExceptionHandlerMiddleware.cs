@@ -1,3 +1,4 @@
+﻿using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NZWalks.API.Exceptions;
@@ -35,17 +36,46 @@ namespace NZWalks.API.Middlewares
                     throw;
                 }
 
-                //Same shape as the automatic [ApiController] model validation errors
-                var problem = new ValidationProblemDetails(ex.Errors)
+                await WriteProblemAsync(context, ValidationProblem(context, ex.Errors, ex.Message), (int)HttpStatusCode.BadRequest);
+            }
+            catch (ValidationException ex)// 400
+            {
+                //A validator called by hand (ValidateAndThrow) - same 400 as auto-validation, not a 500
+                var errors = ex.Errors
+                    .GroupBy(e => e.PropertyName)
+                    .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
+
+                logger.LogWarning("Validation failed on {Path}: {@Errors}", context.Request.Path, errors);
+
+                if (context.Response.HasStarted)
                 {
-                    Type = "https://tools.ietf.org/html/rfc9110#section-15.5.1",
-                    Title = "One or more validation errors occurred.",
-                    Status = (int)HttpStatusCode.BadRequest,
+                    throw;
+                }
+
+                await WriteProblemAsync(context, ValidationProblem(context, errors, detail: null), (int)HttpStatusCode.BadRequest);
+            }
+            catch (BadHttpRequestException ex)// 400 / 413 ...
+            {
+                //Kestrel rejected the request itself (body over the size limit, malformed request) - the client's fault
+                logger.LogWarning("Bad request on {Path}: {Message}", context.Request.Path, ex.Message);
+
+                if (context.Response.HasStarted)
+                {
+                    throw;
+                }
+
+                var problem = new ProblemDetails
+                {
+                    Title = ex.StatusCode == StatusCodes.Status413PayloadTooLarge
+                        ? "The request body is too large."
+                        : "The request could not be read.",
+                    Status = ex.StatusCode,
                     Detail = ex.Message,
                     Instance = context.Request.Path
                 };
+                problem.Extensions["traceId"] = Activity.Current?.Id ?? context.TraceIdentifier;
 
-                await WriteProblemAsync(context, problem, (int)HttpStatusCode.BadRequest);
+                await WriteProblemAsync(context, problem, ex.StatusCode);
             }
             catch (RegionInUseException ex)// 409
             {
@@ -100,11 +130,27 @@ namespace NZWalks.API.Middlewares
             }
         }
 
+        //Every 400 with field errors uses this shape - the same one [ApiController] returns for invalid models
+        private static ValidationProblemDetails ValidationProblem(HttpContext context, IDictionary<string, string[]> errors, string? detail)
+        {
+            var problem = new ValidationProblemDetails(errors)
+            {
+                Type = "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+                Title = "One or more validation errors occurred.",
+                Status = (int)HttpStatusCode.BadRequest,
+                Detail = detail,
+                Instance = context.Request.Path
+            };
+            problem.Extensions["traceId"] = Activity.Current?.Id ?? context.TraceIdentifier;
+            return problem;
+        }
+
         private static async Task WriteProblemAsync(HttpContext context, ProblemDetails problem, int statusCode)
         {
             context.Response.Clear();
             context.Response.StatusCode = statusCode;
-            await context.Response.WriteAsJsonAsync(problem, options: null, contentType: "application/problem+json");
+            //Serialize as the runtime type: WriteAsJsonAsync<ProblemDetails> would drop ValidationProblemDetails.Errors
+            await context.Response.WriteAsJsonAsync(problem, problem.GetType(), options: null, contentType: "application/problem+json");
         }
     }
 }

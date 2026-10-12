@@ -24,40 +24,20 @@ namespace NZWalks.API.Controllers
         [Route("Upload")]
         public async Task<IActionResult> Upload([FromForm] ImageUploadDto img, CancellationToken cancellationToken)
         {
-            ValidateFileUpload(img);
-
-            if(ModelState.IsValid)
-             {
-                //Convert Dto to DomainModel
-                var imageDomainModel = new Image
-                {
-                    File = img.File,
-                    Name = img.Name,
-                    Description = img.Description,
-                    FileExtension = Path.GetExtension(img.File.FileName),
-                    FileSizInBytes = img.File.Length,
-                };
-
-                //Use repository to upload image
-                await ImageRepository.Upload(imageDomainModel, cancellationToken);
-
-                return Ok(imageDomainModel);
-            }
-            return BadRequest(ModelState);
-        }
-
-        private void ValidateFileUpload(ImageUploadDto img)
-        {
-            var allowedExtensions = new string[] { ".jpg", ".png", ".gif", ".svg", ".webp" };
-            if (!allowedExtensions.Contains(Path.GetExtension(img.File.FileName)))
+            //File type, size and fields are checked by ImageUploadDtoValidator before this runs
+            var imageDomainModel = new Image
             {
-                ModelState.AddModelError("File", "Unsupported file extension");
-            }
-            if (img.File.Length > 10485760)
-            {
-                ModelState.AddModelError("File", "File size exceeds 10MB.");
-            }
+                File = img.File,
+                Name = img.Name,
+                Description = img.Description,
+                FileExtension = Path.GetExtension(img.File.FileName),
+                FileSizInBytes = img.File.Length,
+            };
 
+            //Use repository to upload image
+            await ImageRepository.Upload(imageDomainModel, cancellationToken);
+
+            return Ok(imageDomainModel);
         }
     }
 }

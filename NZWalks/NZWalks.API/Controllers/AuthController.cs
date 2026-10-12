@@ -95,7 +95,8 @@ namespace NZWalks.API.Controllers
 
             }
 
-            return BadRequest("Username or password incorrect!");
+            //One generic 401 for unknown email, wrong password and no roles, so callers can't probe which one failed
+            return Problem(statusCode: StatusCodes.Status401Unauthorized, detail: "Username or password incorrect.");
         }
     }
 }

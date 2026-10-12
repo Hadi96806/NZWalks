@@ -31,7 +31,22 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 **The suggested fix was wrong:** looping over `Roles` or using `AddToRolesAsync` would still have honoured client-supplied roles — it fixes "only the first role is applied" and keeps "the caller picks their roles".
 **Resolution:** `Roles` was removed from `RegisterRequestDto`; Register always assigns Reader, and an unknown JSON member such as `roles` is a 400. Roles are granted and revoked only by an Admin through `UsersController` (see [ADR-0004](./decisions.md#adr-0004--roles-are-granted-only-by-an-admin)). Register now also returns Identity's own error messages as a 400 problem+json instead of the plain string "Something went wrong!".
 
-## Security / Config Gaps
+### 12. `RegionsController.GetById` route is missing its braces — **RESOLVED 2026-10-11**
+**File:** `NZWalks.API/Controllers/RegionsController.cs`
+**Current behavior (as found):** `[Route("id:Guid")]` declared a literal path segment, so the route was `/api/v1/Regions/id:Guid`. `GET /api/v1/Regions/{id}` returned 404 even for an existing region, and the `Location` header from `CreatedAtAction(nameof(GetById), …)` in `Create` pointed at a URL that did not resolve.
+**Why it mattered:** a wrong 404 tells the client a record does not exist when it does, and every create handed back a broken link.
+**Resolution:** `[Route("{id:Guid}")]`, matching `Update` and `Delete`. Fixed as part of the consistent-error-responses work, which also moved the Images upload 400 to `ValidationProblem`, removed the unreachable `else { return BadRequest(); }` in `Regions.Create`, and gave the Regions/Walks 404s a `detail` naming the id.
+
+### 13. Bad client input could cause a 500, and reference errors lost their field list — **RESOLVED 2026-10-11**
+**Files:** `NZWalks.API/Controllers/WalksController.cs`, `Controllers/ImagesController.cs`, `Middlewares/ExceptionHandlerMiddleware.cs`
+**Current behavior (as found):**
+- `GET /api/Walks?pageSize=0` divided by zero and `?pageNumber=0` sent a negative OFFSET to SQL — both 500. `pageSize` had no upper bound.
+- `POST /api/Images/Upload` with no file threw a `NullReferenceException` in the hand-written check — 500. The extension check was case-sensitive (`.JPG` rejected).
+- `InvalidReferenceException` built a `ValidationProblemDetails`, but `WriteAsJsonAsync` serialized it as its static type `ProblemDetails`, so the `errors` list naming the missing `RegionId`/`DifficultyId` never reached the client.
+**Why it mattered:** a 500 for a client mistake tells the caller the server is broken and hides what to fix; a 400 without `errors` gives no field to fix.
+**Resolution:** FluentValidation (ADR-0001) — `WalkQueryDto` + validator (`pageNumber ≥ 1`, `pageSize` 1–100, allowed filter/sort names) and `ImageUploadDtoValidator` (file required, any-case extension). The middleware now serializes with the runtime type, and maps `ValidationException` to the same 400 shape.
+
+
 
 ### 4. No CORS policy configured
 **Files:** `NZWalks.API/Program.cs` (absence of `AddCors`/`UseCors`)
@@ -96,3 +111,5 @@ Not touched by the JWT hardening work. Roles now mean something (Register can no
 | 9 | Bug | Medium — **resolved 2026-10-08** | `Controllers/AuthController.cs` |
 | 10 | Structural | High (only matters once scaling horizontally) | `Respositries/LocalImageRepository.cs` |
 | 11 | Config | Low — **resolved 2026-10-08** | `appsettings.json`, `Respositries/TokenRepository.cs` |
+| 12 | Bug | Medium — **resolved 2026-10-11** | `Controllers/RegionsController.cs` |
+| 13 | Bug | Medium — **resolved 2026-10-11** | `WalksController.cs`, `ImagesController.cs`, `ExceptionHandlerMiddleware.cs` |
