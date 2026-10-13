@@ -96,6 +96,37 @@ Not touched by the JWT hardening work. Roles now mean something (Register can no
 **Why it matters:** this works for a single instance on a single machine. It does not survive: horizontal scaling (a second instance won't see files uploaded to the first), container redeploys (an ephemeral container filesystem loses all uploaded images on restart), or most cloud hosting models (App Service/containers typically don't guarantee persistent local disk).
 **Suggested direction:** when scaling beyond a single instance, replace `LocalImageRepository` with an implementation backed by shared/durable storage (e.g. Azure Blob Storage, S3-compatible storage) behind the same `IImageRepository` interface — this is precisely the kind of swap the repository pattern (see [01-PROJECT-STRUCTURE.md](./01-PROJECT-STRUCTURE.md), section 5) is designed to make painless.
 
+### 14. Rate limits are keyed by client IP, which breaks behind a proxy — **OPEN, blocks the Week 4 deploy**
+**Files:** `NZWalks.API/Program.cs` (`AddRateLimiter`, `RemoteIpAddress` partition key)
+**Current behavior:** both limiters partition by `HttpContext.Connection.RemoteIpAddress`. There is no `UseForwardedHeaders`.
+**Why it matters:** behind Azure App Service (or any reverse proxy or load balancer) every request arrives from the proxy's address, so all users share one 100/min bucket and one 5/min login budget — a handful of users would lock everyone out of login. In the other direction, a distributed attacker (many IPs) gets the full per-IP budget from every address; only account lockout bounds that.
+**Suggested direction:** before deploying, configure `ForwardedHeadersOptions` with `ForwardedHeaders.XForwardedFor` and `KnownProxies`/`KnownNetworks` set to the real proxy — never trust `X-Forwarded-For` from anyone, or clients can spoof their IP and dodge the limit — and call `UseForwardedHeaders()` first in the pipeline. See [ADR-0006](./decisions.md#adr-0006--rate-limiting-and-account-lockout).
+
+### 15. Fixed-window limiter allows boundary bursts and reports an imprecise `Retry-After` — **OPEN (accepted trade-off)**
+**Files:** `NZWalks.API/Program.cs` (`GetFixedWindowLimiter`, `OnRejected`)
+**Current behavior:** each window resets its counter at the edge, so a client can send 100 requests at 0:59 and 100 more at 1:00. The fixed-window limiter's `MetadataName.RetryAfter` is the full window length, so `Retry-After` is always `60`, even 20 seconds into the window.
+**Why it matters:** the effective peak is twice the stated limit, and well-behaved clients wait longer than needed. Acceptable at the current scale.
+**Suggested direction:** switch to `GetSlidingWindowLimiter` (e.g. 6 segments of 10 s) or `GetTokenBucketLimiter` if burstiness or retry precision start to matter. The `OnRejected` code stays the same.
+
+### 16. Rate-limit state is in memory, per instance — **OPEN (accepted trade-off)**
+**Files:** `NZWalks.API/Program.cs` (built-in `PartitionedRateLimiter`)
+**Current behavior:** counters live in the process. A restart resets every counter; two instances each allow the full limit (2 × 100/min, 2 × 5/min logins).
+**Why it matters:** irrelevant on one instance. Once scaled out (see #10), limits multiply by the instance count, and every redeploy gives an attacker a fresh budget. Identity lockout is unaffected — it is stored in the database.
+**Suggested direction:** when running more than one instance, move to a distributed limiter (e.g. Redis-backed), or enforce limits at the gateway (Azure Front Door / API Management) instead of in the app.
+
+### 17. Rate-limit and lockout settings are hard-coded; lockout abuse and user feedback are unaddressed — **OPEN**
+**Files:** `NZWalks.API/Program.cs` (`AddRateLimiter`, `Configure<IdentityOptions>`), `NZWalks.API/Controllers/AuthController.cs`
+**Current behavior:**
+- `PermitLimit`/`Window` (100/min, 5/min) and lockout (5 failures, 5 minutes) are literals in `Program.cs`; the two `GetFixedWindowLimiter` blocks differ only in the limit, and the `AddRateLimiter` block is ~60 lines of `Program.cs`.
+- Login and Register share one 5/min budget.
+- A locked-out user gets the generic 401 and is never told the account was locked. Anyone who knows an email can keep that account locked by sending 5 wrong passwords every 5 minutes. Lockout duration is fixed, not escalating.
+**Why it matters:** changing a limit per environment needs a rebuild. Register abuse is slow and spread out, so a per-minute budget fits it poorly. The generic 401 is deliberate (it hides whether the account exists and whether guessing works) but leaves a real user confused, and a short fixed lockout is a mild denial-of-service lever against a known user.
+**Suggested direction:**
+- Bind limits and lockout from configuration (`RateLimiting:` and `Identity:Lockout` sections); extract a `PerIpFixedWindow(int permitLimit)` helper if a third policy appears.
+- Split the policies if needed (e.g. Login 5/min, Register 3/hour).
+- Notify the user out-of-band (email) when their account locks, rather than revealing it in the API; consider escalating lockout (5 min, then 15, then 1 h) via a custom `UserManager` if the API ever guards anything valuable.
+- The warnings now logged (`Rate limit hit by…`, `Login refused for locked-out user…`) are the data to base these decisions on.
+
 ## Summary table
 
 | # | Category | Severity | File(s) |
@@ -113,3 +144,7 @@ Not touched by the JWT hardening work. Roles now mean something (Register can no
 | 11 | Config | Low — **resolved 2026-10-08** | `appsettings.json`, `Respositries/TokenRepository.cs` |
 | 12 | Bug | Medium — **resolved 2026-10-11** | `Controllers/RegionsController.cs` |
 | 13 | Bug | Medium — **resolved 2026-10-11** | `WalksController.cs`, `ImagesController.cs`, `ExceptionHandlerMiddleware.cs` |
+| 14 | Security/Config | High (blocks the Week 4 deploy) | `Program.cs` |
+| 15 | Structural | Low (accepted trade-off) | `Program.cs` |
+| 16 | Structural | Medium (only matters once scaled out) | `Program.cs` |
+| 17 | Security/Config | Low | `Program.cs`, `Controllers/AuthController.cs` |

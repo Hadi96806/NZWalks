@@ -1,22 +1,30 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NZWalks.API.Constants;
 using NZWalks.API.Models.DTO;
 using NZWalks.API.Respositries;
 
 namespace NZWalks.API.Controllers
 {
+    //Every action here takes credentials, so the strict limit sits on the class: a new action can't be added without it
+    [EnableRateLimiting(RateLimitPolicies.Auth)]
     [Route("api/[controller]")]
     [ApiController]
     public class AuthController : ControllerBase
     {
         private readonly UserManager<IdentityUser> userManager;
+        private readonly SignInManager<IdentityUser> signInManager;
         private readonly ITokenRepository tokenRepository;
+        private readonly ILogger<AuthController> logger;
 
-        public AuthController(UserManager<IdentityUser> userManager, ITokenRepository tokenRepository)
+        public AuthController(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager,
+            ITokenRepository tokenRepository, ILogger<AuthController> logger)
         {
+            this.logger = logger;
             this.userManager = userManager;
+            this.signInManager = signInManager;
             this.tokenRepository = tokenRepository;
         }
 
@@ -75,8 +83,17 @@ namespace NZWalks.API.Controllers
 
             if(user != null)
             {
-                var checkPasswordResult = await userManager.CheckPasswordAsync(user, logInRequestDto.Password);
-                if (checkPasswordResult)
+                //One call: refuses a locked-out account, counts a wrong password towards lockout,
+                //and resets the count on success. Issues no cookie - the JWT below is the only credential.
+                var signInResult = await signInManager.CheckPasswordSignInAsync(user, logInRequestDto.Password, lockoutOnFailure: true);
+                //Security event: the caller still gets the generic 401 below, but the log records the lockout
+                if (signInResult.IsLockedOut)
+                {
+                    logger.LogWarning("Login refused for locked-out user {UserId} from {ClientIp}",
+                        user.Id, HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown");
+                }
+
+                if (signInResult.Succeeded)
                 {
                     var roles = await userManager.GetRolesAsync(user);
                     if (roles != null && roles.Any())
@@ -95,7 +112,8 @@ namespace NZWalks.API.Controllers
 
             }
 
-            //One generic 401 for unknown email, wrong password and no roles, so callers can't probe which one failed
+            //One generic 401 for unknown email, wrong password, locked-out account and no roles,
+            //so callers can't probe which one failed (or that guessing is working)
             return Problem(statusCode: StatusCodes.Status401Unauthorized, detail: "Username or password incorrect.");
         }
     }

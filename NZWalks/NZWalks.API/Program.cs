@@ -9,12 +9,16 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using NZWalks.API;
+using NZWalks.API.Constants;
 using NZWalks.API.Data;
 using NZWalks.API.Mappings;
 using NZWalks.API.Middlewares;
 using NZWalks.API.Respositries;
 using Serilog;
+using System.Diagnostics;
+using System.Globalization;
 using System.Text;
+using System.Threading.RateLimiting;
 
 
 
@@ -135,6 +139,8 @@ builder.Services.AddIdentityCore<IdentityUser>()
     .AddRoles<IdentityRole>()
     .AddTokenProvider<DataProtectorTokenProvider<IdentityUser>>("NZWalks")
     .AddEntityFrameworkStores<NZWalksAuthDbContext>()
+    //Only for CheckPasswordSignInAsync (lockout-aware password check); no cookie sign-in is used
+    .AddSignInManager()
     .AddDefaultTokenProviders();
 
 builder.Services.Configure<IdentityOptions>(options =>
@@ -143,6 +149,12 @@ builder.Services.Configure<IdentityOptions>(options =>
         options.Password.RequireDigit = true;
         options.Password.RequiredLength = 8;
         options.Password.RequiredUniqueChars = 1;
+
+        //Lock an account for 5 minutes after 5 wrong passwords in a row - Identity's defaults, set explicitly so they're visible.
+        //Bounds guessing against one account from many IPs, which the per-IP rate limit can't.
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+        options.Lockout.AllowedForNewUsers = true;
     });
 
 var jwtKey = RequireSecret("Jwt:Key");
@@ -167,6 +179,68 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 
 
+
+//Global cap: 100 requests per minute per client IP, fixed window, no queue (extra requests are rejected, not delayed).
+//Limiter state is in memory, so it resets on restart and is per instance.
+builder.Services.AddRateLimiter(options =>
+{
+    //429 says "you are too fast"; the default 503 would tell clients the server is broken
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        var httpContext = context.HttpContext;
+        string? detail = null;
+
+        //Repeated 429s from one IP on /api/Auth are a brute-force signal worth seeing in the logs
+        var logger = httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("NZWalks.RateLimiting");
+        logger.LogWarning("Rate limit hit by {ClientIp} on {Method} {Path}",
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", httpContext.Request.Method, httpContext.Request.Path);
+
+        //Tell well-behaved clients exactly when to retry instead of letting them hammer
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        {
+            var seconds = (int)Math.Ceiling(retryAfter.TotalSeconds);
+            httpContext.Response.Headers.RetryAfter = seconds.ToString(NumberFormatInfo.InvariantInfo);
+            detail = $"Too many requests. Try again in {seconds} seconds.";
+        }
+
+        //Same ProblemDetails pipeline as every other error, so the body carries type and traceId too
+        var problemDetailsService = httpContext.RequestServices.GetRequiredService<IProblemDetailsService>();
+        await problemDetailsService.WriteAsync(new ProblemDetailsContext
+        {
+            HttpContext = httpContext,
+            ProblemDetails =
+            {
+                Type = "https://tools.ietf.org/html/rfc6585#section-4",
+                Status = StatusCodes.Status429TooManyRequests,
+                Detail = detail,
+                Extensions = { ["traceId"] = Activity.Current?.Id ?? httpContext.TraceIdentifier }
+            }
+        });
+    };
+
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 100,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+
+    //Credential endpoints get a much tighter budget: slows password guessing and mass sign-ups.
+    //Applies on top of the global limit, so a login counts against both.
+    options.AddPolicy(RateLimitPolicies.Auth, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+});
 
 var app = builder.Build();
 
@@ -200,6 +274,10 @@ app.UseStaticFiles(new StaticFileOptions
     FileProvider = new PhysicalFileProvider(imagesPath),
     RequestPath = "/Images"
 });
+
+//After static files (image downloads aren't counted), before authentication (rejected requests never reach the JWT handler)
+app.UseRouting();
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
