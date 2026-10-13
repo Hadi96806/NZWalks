@@ -97,28 +97,63 @@ implementations.** Structure:
 5. **Docs to update** — finding to mark fixed in `03`, ADR to write/accept (map D↔ADR), tracker
    subtask to tick.
 
+### The interactive plan artifact — buttons live here, and only here
+
+Every plan also gets an **artifact**, and that's the only place the buttons go: **not** on the
+Notion page and **not** in the `.md` (he decided this 2026-10-08). Never hand-write the page.
+Every plan uses the same layout:
+
+1. Write `docs/plans/<name>.parts.html` with five sections, each wrapped in `<!--NAME-->…<!--/NAME-->`:
+   `TITLE` (a short name), `HEADER` (eyebrow, h1, lede, decision chips), `NOTES_TOP` ("Owned
+   elsewhere"), `NOTES_BOTTOM` ("Done when"), and `DATA`. `DATA` holds the JS consts `PLAN`
+   (the `.md` path), `KEY` (a localStorage prefix), `CONTEXT` (the brief for Ask Claude: who he
+   is, the stack, the decisions, what's out of scope), and `STEPS`
+   (`[{t, tag, why?, items:[html…], decide?}]`). Copy `docs/plans/rate-limiting.parts.html`.
+2. Build: `powershell -File .claude/skills/task-plan/build-plan-artifact.ps1 -Parts docs/plans/<name>.parts.html -Out docs/plans/<name>.html`
+   (from the repo root). It fills `plan-artifact-template.html`, next to this file.
+3. Publish `docs/plans/<name>.html` with `capabilities: {sample: {}}`. Put the URL in the `.md`.
+
+What the template gives each subtask, so don't rebuild these:
+- **Ask Claude**: a chat through the `sample` capability. The first turn sends `CONTEXT`,
+  every subtask title and this subtask's full text. It docks on the right with a draggable,
+  keyboard-resizable edge, or switches to a **floating window** that moves by its header and
+  resizes from its corner. The layout is remembered per viewer. On phones it's a bottom sheet.
+  That Claude can't read his files, and the brief tells it so.
+- **Implement**: **Start implement session** opens a new desktop Claude Code session through
+  `claude://code/new?folder=<repo>&q=<prompt>`. The prompt is "Use the task-implement skill on
+  <plan>, subtask <n>. Before starting, file this session under the "NZWalks" sidebar group."
+  It must **not** start with `/`, because the app refuses deep-link prompts that start with a
+  slash. The link has no group parameter, so `task-implement` Step 0 moves the session into
+  the group. A **Copy command** fallback gives `/task-implement <plan> subtask <n>` for when the
+  link doesn't open the app.
+- A per-viewer Done tick and a progress bar.
+
+To change the layout for every plan, edit the template, rebuild each plan's `.html` from its
+parts file, and republish each one.
+
 ## Step 7 — Save and publish the plan
 
-Every plan goes to **both** places — never just one:
+Every plan lives in these places:
 
-1. **Local file:** `docs/plans/<short-kebab-name>.md`. Plan mode already writes there via
-   `plansDirectory` in `.claude/settings.json`; rename an auto-generated filename to a readable
-   one. `docs/plans/` is **gitignored** — never `git add` it or commit a plan, and never move
-   a plan anywhere tracked.
-2. **Notion page, same structure every time:** Claude Mastery → **14 weeks Program**
-   (page `3f062584db32817f8ab9ead496f2d755`) → **Week N** page → the plan as a child page,
-   titled like the file. If the Week N page doesn't exist yet, create it under 14 weeks Program
-   first, then record its id in the list below.
+1. **Local files:** `docs/plans/<short-kebab-name>.md`, plus its `.parts.html` and built
+   `.html`. Plan mode already writes there via `plansDirectory` in `.claude/settings.json`;
+   rename an auto-generated filename to a readable one. `docs/plans/` is **gitignored**: never
+   `git add` it or commit a plan, and never move a plan anywhere tracked.
+2. **The artifact** (Step 6): the interactive, durable copy of the plan. Its versions are kept
+   by the artifact service, so it's the copy that survives if the local files are lost.
+3. **Notion holds a link, not a copy** (he decided this 2026-10-12: "I wanted the artifact to be
+   under Week 1, not a Notion file"). **Don't create a Notion page for the plan.** On the Week N
+   page (Claude Mastery → 14 weeks Program → Week N), add one line under its
+   `## Interactive plans` heading: an emoji, the plan's name linked to the artifact URL, and
+   "Ask Claude chat and Implement on every subtask". Create that heading if it's missing.
+   If the Week N page doesn't exist, create it under 14 weeks Program
+   (page `3f062584db32817f8ab9ead496f2d755`) and record its id here.
    - Known week pages: Week 1 = `3f062584db32815e917fcbbdb3ceadeb`.
-   - These are pages acting as folders. Notion's real Folders only hold uploaded files, so don't
-     use `notion-create-folder` for plans.
-   - Use Notion-flavoured Markdown: tables as `<table>`, steps as `- [ ]` to-dos so he can tick
-     them in Notion. Open with a callout naming the local file path.
-3. **Notion is the durable copy.** The local file isn't in git, so it has no history or backup.
-   When a plan changes, update the Notion page as well as the file.
-4. Give him both: the local path and the Notion link.
-5. Before publishing, grep the plan for the `Jwt:Key` value, the `sa` password and real emails —
-   Notion pages can be shared.
+   - Notion can't embed an artifact (it only embeds uploaded HTML files), so a link is the
+     closest thing to putting the artifact under the week.
+4. Give him the artifact link and the local path.
+5. Before publishing, grep the plan for the `Jwt:Key` value, the `sa` password and real emails.
+   The artifact is private until he shares it, but can be shared.
 
 Plan one action at a time. When done, stop and offer the next subtask — don't batch.
 

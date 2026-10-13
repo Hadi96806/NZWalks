@@ -19,20 +19,19 @@ There is currently **one project** in the solution. There is no separate `NZWalk
 NZWalks.API/
 ├── Program.cs                     # Composition root: DI registration + HTTP pipeline (see 02-MIDDLEWARE-PIPELINE.md)
 ├── ConfigureSwaggerOptions.cs      # Wires up one Swagger doc per API version
-├── WeatherForecast.cs              # Leftover from the dotnet new webapi template — unused
-├── NZWalks.API.csproj
-├── appsettings.json                 # ConnectionStrings, Jwt:{Key,Issuer,Audience,ExpiryMinutes}, Logging
+├── NZWalks.API.csproj               # carries <UserSecretsId> — secrets live in user-secrets, not the repo
+├── appsettings.json                 # Jwt:{Issuer,Audience,ExpiryMinutes}, Logging; ConnectionStrings and Jwt:Key are empty placeholders (ADR-0003)
 ├── appsettings.Development.json     # Dev-only Logging overrides
 │
+├── Constants/
+│   └── RoleNames.cs                # Reader / Writer / Admin as consts (usable in [Authorize(Roles = …)]) + RoleNames.All
+│
 ├── Controllers/                    # HTTP entry points — one controller per resource
-│   ├── AuthController.cs           # api/Auth — Register / Login
+│   ├── AuthController.cs           # api/Auth — Register (always Reader) / Login
 │   ├── ImagesController.cs         # api/Images — Upload
 │   ├── RegionsController.cs        # api/v{version}/Regions — versioned CRUD (v1.0 & v2.0)
-│   ├── WalksController.cs          # api/Walks — filtered/sorted/paginated CRUD
-│   └── WeatherForecastController.cs # template leftover, unused
-│
-├── CustomActionFilter/
-│   └── ValidateModelAttribute.cs   # ActionFilterAttribute — short-circuits to 400 on invalid ModelState
+│   ├── UsersController.cs          # api/Users — Admin-only GrantRole / RevokeRole (ADR-0004)
+│   └── WalksController.cs          # api/Walks — filtered/sorted/paginated CRUD
 │
 ├── Data/                           # EF Core DbContexts — the only place the API talks to SQL Server
 │   ├── NZWalksDbContext.cs         # Regions, Walks, Difficulties, Images — seeds Difficulty/Region data
@@ -72,7 +71,9 @@ NZWalks.API/
 │   │   ├── DifficultyDto.cs
 │   │   ├── ImageUploadDto.cs
 │   │   ├── LogInRequestDto.cs / LoginResponseDto.cs
-│   │   └── RegisterRequestDto.cs
+│   │   ├── RegisterRequestDto.cs   # email + password only; a "roles" member is rejected (400)
+│   │   ├── UserRoleRequestDto.cs   # { email, role } body for GrantRole / RevokeRole
+│   │   └── WalkQueryDto.cs         # GET /api/Walks filter, sort and paging query parameters
 │   └── Pagination Result/          # Paging wrappers (namespace: Pagination_Result — see findings doc)
 │       ├── WalkPageResult.cs       # wraps domain Walk list + paging metadata
 │       └── WalkPageDtoResult.cs    # wraps WalkDto list + paging metadata
@@ -80,11 +81,17 @@ NZWalks.API/
 ├── Properties/
 │   └── launchSettings.json
 │
-└── Respositries/                   # Repository pattern — sits between controllers and DbContexts
-    ├── IImageRepository.cs         → LocalImageRepository.cs
-    ├── IRegionRespository.cs       → SQLRegionRepository.cs
-    ├── ITokenRepository.cs         → TokenRepository.cs
-    └── IWalkRepository.cs          → SQLWalkRepository.cs
+├── Respositries/                   # Repository pattern — sits between controllers and DbContexts
+│   ├── IImageRepository.cs         → LocalImageRepository.cs
+│   ├── IRegionRespository.cs       → SQLRegionRepository.cs
+│   ├── ITokenRepository.cs         → TokenRepository.cs
+│   └── IWalkRepository.cs          → SQLWalkRepository.cs
+│
+└── Validators/                     # FluentValidation — one validator per request DTO (ADR-0001)
+    ├── *Validator.cs               # AddRegionDto, UpdateRegionDto, AddWalkDto, UpdateWalkDto, ImageUploadDto,
+    │                               # LogInRequestDto, RegisterRequestDto, UserRoleRequestDto, WalkQueryDto
+    ├── AuthRules.cs                # MaxPasswordLength (128) — caps input before the password hasher; used by Login + Register
+    └── RuleBuilderExtensions.cs    # MustBeOptionalHttpUrl() — optional image-URL rule (absolute http/https, ≤ 2048 chars)
 ```
 
 There is no `wwwroot/` folder — static image serving is configured explicitly against the `Images/` folder in `Program.cs` (see 02-MIDDLEWARE-PIPELINE.md).
@@ -94,12 +101,12 @@ There is no `wwwroot/` folder — static image serving is configured explicitly 
 | Controller | Route(s) | Actions | Injected dependencies |
 |---|---|---|---|
 | `AuthController` | `api/Auth` | `POST /Register`, `POST /Login` | `UserManager<IdentityUser>`, `ITokenRepository` |
+| `UsersController` | `api/Users` (class-level `[Authorize(Roles = Admin)]`) | `POST /GrantRole`, `POST /RevokeRole` | `UserManager<IdentityUser>`, `ILogger<UsersController>` |
 | `ImagesController` | `api/Images` | `POST /Upload` | `IImageRepository` |
 | `RegionsController` | `api/v{version}/Regions` (v1.0, v2.0) | `GetAllV1`, `GetAllV2`, `GetById`, `Create`, `Update`, `Delete` | `IRegionRespository`, `IMapper`, `ILogger<RegionsController>` |
 | `WalksController` | `api/Walks` | `GetAll` (filter + sort + pagination), `GetById`, `Create`, `Update`, `Delete` | `IMapper`, `IWalkRepository` |
-| `WeatherForecastController` | template default | unused | — |
 
-Controllers are deliberately thin: they validate input (via `[ValidateModel]`), call a repository, map the result with AutoMapper, and return it. No EF Core or SQL appears in a controller file.
+Controllers are deliberately thin: their request DTOs are validated before the action runs (a FluentValidation validator in `Validators/`, wired by `AddFluentValidationAutoValidation()`), they call a repository, map the result with AutoMapper, and return it. No EF Core or SQL appears in a controller file.
 
 ## 4. Models: Domain vs DTO
 

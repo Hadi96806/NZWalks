@@ -1,0 +1,266 @@
+<title>__TITLE__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,640&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column of subtask cards. The Ask Claude chat docks on the right with a
+   draggable edge to resize it, or floats as a movable, resizable window. Bottom sheet on phones. */
+:root{
+  --bg:#f4f6f3; --surface:#ffffff; --surface-2:#e9eee8; --line:#d3dccf;
+  --fg:#16211a; --dim:#55665a; --faint:#7f8f83;
+  --accent:#2e6b4a; --accent-soft:#dcebe1; --warn:#8a5a00; --warn-soft:#f8ead0;
+  --display:"Fraunces",Georgia,serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1511; --surface:#16201a; --surface-2:#1d2a22; --line:#2a3a30;
+  --fg:#e3ece5; --dim:#9db0a3; --faint:#71857a; --accent:#6cc394; --accent-soft:#163626; --warn:#e3b45c; --warn-soft:#3a2d12; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1511; --surface:#16201a; --surface-2:#1d2a22; --line:#2a3a30;
+  --fg:#e3ece5; --dim:#9db0a3; --faint:#71857a; --accent:#6cc394; --accent-soft:#163626; --warn:#e3b45c; --warn-soft:#3a2d12; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.6 var(--body);padding-inline:18px;padding-block:28px 64px}
+.wrap{max-width:820px;margin:0 auto;display:grid;gap:22px}
+code{font:0.86em var(--mono);background:var(--surface-2);padding:.08em .32em;border-radius:3px;word-break:break-word}
+h1{font:640 clamp(26px,5vw,36px)/1.15 var(--display);margin:0;text-wrap:balance}
+h2{font:600 13px var(--body);letter-spacing:.09em;text-transform:uppercase;color:var(--dim);margin:6px 0 0}
+.eyebrow{font:500 12px var(--mono);color:var(--accent);letter-spacing:.04em}
+.lede{color:var(--dim);margin:6px 0 0;max-width:64ch}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{font:500 12px var(--mono);padding:3px 8px;border-radius:99px;background:var(--surface-2);color:var(--dim)}
+.chip.decided{background:var(--accent-soft);color:var(--accent)}
+.note{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.note ul{margin:6px 0 0;padding-left:18px}.note li{margin:3px 0}
+.progress{display:flex;align-items:center;gap:12px}
+.bar{flex:1;height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden}
+.bar span{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.count{font:500 13px var(--mono);color:var(--dim);font-variant-numeric:tabular-nums}
+.steps{display:grid;gap:14px}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:grid;gap:10px;min-width:0}
+.step.done{opacity:.72}
+.step-head{display:flex;gap:12px;align-items:flex-start}
+.num{font:640 22px/1 var(--display);color:var(--accent);min-width:1.4em;font-variant-numeric:tabular-nums}
+.step-title{font:600 16px var(--body);margin:0;flex:1;min-width:0}
+.tag{font:500 11px var(--mono);color:var(--faint);white-space:nowrap}
+.tick{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--dim);cursor:pointer;width:max-content}
+.tick input{accent-color:var(--accent);width:16px;height:16px}
+.step ul{margin:0;padding-left:18px}.step li{margin:4px 0}
+.decide{background:var(--warn-soft);border-radius:6px;padding:8px 11px;font-size:14px}
+.decide b{color:var(--warn)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;padding-top:4px}
+.btn{font:500 14px var(--body);border-radius:7px;padding:8px 14px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.btn.small{padding:4px 10px;font-size:13px}
+.btn:focus-visible,.tick input:focus-visible,textarea:focus-visible,.grip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.impl{display:none;background:var(--surface-2);border-radius:7px;padding:10px 12px;font-size:13px;color:var(--dim);gap:8px}
+.impl.open{display:grid}
+.impl pre{margin:0;font:13px var(--mono);color:var(--fg);white-space:pre-wrap;word-break:break-all}
+.impl .row{display:flex;flex-wrap:wrap;gap:8px}
+
+/* chat: docked (resizable from the left edge) or floating (move by header, resize from corner) */
+.chat{position:fixed;z-index:10;background:var(--surface);border:1px solid var(--line);display:none;grid-template-rows:auto 1fr auto;min-width:300px;min-height:260px}
+.chat.open{display:grid}
+.chat.dock{top:0;right:0;bottom:0;width:var(--chat-w,440px);max-width:calc(100vw - 40px);border-width:0 0 0 1px;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.chat.float{border-radius:10px;box-shadow:0 12px 40px rgb(0 0 0 / .22);resize:both;overflow:hidden;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px)}
+.grip{position:absolute;left:-5px;top:0;bottom:0;width:10px;cursor:ew-resize;touch-action:none}
+.grip::after{content:"";position:absolute;left:4px;top:50%;width:2px;height:36px;margin-top:-18px;border-radius:2px;background:var(--line)}
+.grip:hover::after{background:var(--accent)}
+.chat.float .grip{display:none}
+.dhead{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center}
+.chat.float .dhead{cursor:move;touch-action:none}
+.dhead .t{flex:1;min-width:0}.dhead b{display:block;font:600 15px var(--body)}.dhead small{color:var(--dim);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.msgs{overflow-y:auto;padding:14px;display:grid;gap:12px;align-content:start;min-height:0}
+.msg{padding:10px 12px;border-radius:8px;white-space:pre-wrap;font-size:14px;min-width:0;overflow-wrap:anywhere}
+.msg.user{background:var(--accent-soft);justify-self:end;max-width:88%}
+.msg.ai{background:var(--surface-2)}
+.msg.hint{color:var(--dim);font-size:13px;background:none;padding:0}
+.dfoot{border-top:1px solid var(--line);padding:12px 14px;display:grid;gap:8px}
+textarea{width:100%;min-height:60px;resize:vertical;font:14px var(--body);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:7px;padding:8px 10px}
+.unavail{color:var(--warn);font-size:13px}
+@media (max-width:640px){.chat.dock,.chat.float{inset:auto 0 0 0!important;width:100%!important;height:70vh!important;border-radius:12px 12px 0 0;resize:none}.grip{display:none}#mode{display:none}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>__HEADER__</header>
+  <div class="note">
+    <b>Two buttons on every subtask</b>
+    <ul>
+      <li><b>Ask Claude</b> opens a chat beside the plan, already briefed on that subtask. Drag its left edge to resize it, or switch it to a floating window you can move and resize. It answers from the plan, not your files.</li>
+      <li><b>Implement</b> starts a new Claude Code session in the desktop app, in the <code>NZWalks</code> folder, filed under the <b>NZWalks</b> sidebar group. It runs the <code>task-implement</code> skill: that subtask only, with the syntax and business reason explained. If the app doesn't open, copy the command into a Claude Code session.</li>
+    </ul>
+  </div>
+  <div class="progress"><div class="bar"><span id="fill"></span></div><span class="count" id="count"></span></div>
+  __NOTES_TOP__
+  <h2>Subtasks</h2>
+  <div id="steps" class="steps"></div>
+  __NOTES_BOTTOM__
+</div>
+
+<aside class="chat dock" id="chat" aria-label="Ask Claude">
+  <div class="grip" id="grip" role="separator" aria-orientation="vertical" aria-label="Resize chat" tabindex="0"></div>
+  <div class="dhead" id="dhead">
+    <div class="t"><b id="dtitle">Ask Claude</b><small id="dsub"></small></div>
+    <button class="btn small" id="mode" type="button">Float</button>
+    <button class="btn small" id="close" type="button">Close</button>
+  </div>
+  <div class="msgs" id="msgs"></div>
+  <form class="dfoot" id="form">
+    <textarea id="q" placeholder="Ask about this subtask…"></textarea>
+    <div class="actions" style="padding:0"><button class="btn primary" type="submit">Ask</button><span class="unavail" id="unavail" hidden>Chat isn't available in this view.</span></div>
+  </form>
+</aside>
+
+<script>
+const CWD = "C:\\Users\\hadi.tawil\\Desktop\\Testing\\NZWalks";
+__DATA__
+
+const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+//Ticks start from what the plan marks done ({done:true} on a step); after that the viewer's own ticks win
+let done = lsGet(KEY + ":done", null) || Object.fromEntries(STEPS.map((s, i) => [i, s.done]).filter(x => x[1]));
+const strip = h => h.replace(/<[^>]+>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+const slashCmd = n => `/task-implement ${PLAN} subtask ${n}`;
+const appPrompt = n => `Use the task-implement skill on ${PLAN}, subtask ${n}. Before starting, file this session under the "NZWalks" sidebar group.`;
+const appUrl = n => "claude://code/new?folder=" + encodeURIComponent(CWD) + "&q=" + encodeURIComponent(appPrompt(n));
+
+function render(){
+  document.getElementById("steps").innerHTML = STEPS.map((s, n) => `
+    <article class="step ${done[n] ? "done" : ""}" id="s${n}">
+      <div class="step-head"><span class="num">${n}</span><h3 class="step-title">${s.t}</h3><span class="tag">${s.tag}</span></div>
+      ${s.why ? `<div>${s.why}</div>` : ""}
+      <ul>${s.items.map(i => `<li>${i}</li>`).join("")}</ul>
+      ${s.decide ? `<div class="decide"><b>Decide:</b> ${s.decide}</div>` : ""}
+      <label class="tick"><input type="checkbox" id="done-${n}" data-n="${n}" ${done[n] ? "checked" : ""}> Done</label>
+      <div class="actions">
+        <button class="btn" type="button" data-ask="${n}">Ask Claude</button>
+        <button class="btn primary" type="button" data-impl="${n}">Implement</button>
+      </div>
+      <div class="impl" id="impl-${n}">
+        <div>Starts a new Claude Code session in <code>NZWalks</code>, under the NZWalks group.</div>
+        <div class="row">
+          <a class="btn primary" href="${appUrl(n)}">Start implement session</a>
+          <button class="btn" type="button" data-copy="${n}">Copy command</button>
+        </div>
+        <pre id="cmd-${n}">${slashCmd(n)}</pre>
+      </div>
+    </article>`).join("");
+  const c = STEPS.filter((_, n) => done[n]).length;
+  document.getElementById("count").textContent = `${c} / ${STEPS.length} done`;
+  document.getElementById("fill").style.width = (c / STEPS.length * 100) + "%";
+}
+
+document.addEventListener("click", async e => {
+  const t = e.target.closest("[data-ask],[data-impl],[data-copy]");
+  if (!t) return;
+  if (t.dataset.impl) document.getElementById("impl-" + t.dataset.impl).classList.toggle("open");
+  if (t.dataset.ask) openChat(+t.dataset.ask);
+  if (t.dataset.copy) {
+    const n = t.dataset.copy;
+    try { await navigator.clipboard.writeText(slashCmd(n)); t.textContent = "Copied"; }
+    catch (err) { const r = document.createRange(); r.selectNodeContents(document.getElementById("cmd-" + n)); getSelection().removeAllRanges(); getSelection().addRange(r); t.textContent = "Selected, press Ctrl+C"; }
+    setTimeout(() => t.textContent = "Copy command", 2000);
+  }
+});
+document.addEventListener("change", e => {
+  const n = e.target.dataset.n; if (n === undefined) return;
+  if (e.target.checked) done[n] = true; else delete done[n];
+  lsSet(KEY + ":done", done); render();
+});
+
+/* ---- chat window: dock (resizable) / float (movable + resizable) ---- */
+const chat = document.getElementById("chat");
+let layout = lsGet(KEY + ":chat", { mode: "dock", w: 440, x: null, y: 80, fw: 420, fh: 520 });
+function applyLayout(){
+  chat.classList.toggle("dock", layout.mode === "dock");
+  chat.classList.toggle("float", layout.mode === "float");
+  document.getElementById("mode").textContent = layout.mode === "dock" ? "Float" : "Dock";
+  if (layout.mode === "dock") {
+    chat.style.cssText = "";
+    chat.style.setProperty("--chat-w", Math.min(Math.max(layout.w, 300), innerWidth - 40) + "px");
+  } else {
+    const w = Math.min(layout.fw, innerWidth - 16), h = Math.min(layout.fh, innerHeight - 16);
+    const x = layout.x === null ? innerWidth - w - 24 : Math.min(Math.max(layout.x, 8), innerWidth - w - 8);
+    const y = Math.min(Math.max(layout.y, 8), innerHeight - 80);
+    chat.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px`;
+  }
+}
+document.getElementById("mode").onclick = () => { layout.mode = layout.mode === "dock" ? "float" : "dock"; applyLayout(); lsSet(KEY + ":chat", layout); };
+// dock: drag the left edge
+const grip = document.getElementById("grip");
+grip.addEventListener("pointerdown", e => {
+  e.preventDefault(); grip.setPointerCapture(e.pointerId);
+  const move = ev => { layout.w = Math.min(Math.max(innerWidth - ev.clientX, 300), innerWidth - 40); chat.style.setProperty("--chat-w", layout.w + "px"); };
+  const up = () => { grip.removeEventListener("pointermove", move); grip.removeEventListener("pointerup", up); lsSet(KEY + ":chat", layout); };
+  grip.addEventListener("pointermove", move); grip.addEventListener("pointerup", up);
+});
+grip.addEventListener("keydown", e => {
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  layout.w += e.key === "ArrowLeft" ? 40 : -40; applyLayout(); lsSet(KEY + ":chat", layout);
+});
+// float: drag by the header
+const head = document.getElementById("dhead");
+head.addEventListener("pointerdown", e => {
+  if (layout.mode !== "float" || e.target.closest("button")) return;
+  e.preventDefault(); head.setPointerCapture(e.pointerId);
+  const r = chat.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+  const move = ev => { layout.x = ev.clientX - dx; layout.y = ev.clientY - dy; applyLayout(); };
+  const up = () => { head.removeEventListener("pointermove", move); head.removeEventListener("pointerup", up); lsSet(KEY + ":chat", layout); };
+  head.addEventListener("pointermove", move); head.addEventListener("pointerup", up);
+});
+// float: remember the size set with the corner handle
+new ResizeObserver(() => {
+  if (layout.mode !== "float" || !chat.classList.contains("open")) return;
+  layout.fw = chat.offsetWidth; layout.fh = chat.offsetHeight; lsSet(KEY + ":chat", layout);
+}).observe(chat);
+addEventListener("resize", () => chat.classList.contains("open") && applyLayout());
+
+/* ---- Ask Claude ---- */
+let sample = null, current = null, turns = [], busy = false, ctrl = null;
+const msgs = document.getElementById("msgs");
+function brief(n){
+  const s = STEPS[n];
+  const all = STEPS.map((x, i) => `${i}. ${x.t} (${x.tag})`).join("\n");
+  return `${CONTEXT}
+
+All subtasks:
+${all}
+
+The question is about subtask ${n}: ${s.t} (${s.tag}).
+${s.why ? strip(s.why) + "\n" : ""}${s.items.map(i => "- " + strip(i)).join("\n")}
+${s.decide ? "Open decision: " + strip(s.decide) : ""}
+
+You cannot see his code; answer from this plan and general knowledge, and say so when an answer depends on code you can't see. Explain the C# and ASP.NET Core syntax and the business reason when relevant. Keep answers focused and concrete. Don't write the full implementation unless he asks for it.`;
+}
+function addMsg(cls, text){ const d = document.createElement("div"); d.className = "msg " + cls; d.textContent = text; msgs.appendChild(d); msgs.scrollTop = msgs.scrollHeight; return d; }
+function openChat(n){
+  if (current !== n) { current = n; turns = []; msgs.innerHTML = ""; addMsg("hint", `Briefed on subtask ${n}. Ask anything: why it works this way, what the syntax means, what to watch for.`); }
+  document.getElementById("dtitle").textContent = `Ask Claude · subtask ${n}`;
+  document.getElementById("dsub").textContent = STEPS[n].t;
+  chat.classList.add("open"); applyLayout();
+  document.getElementById("q").focus();
+}
+document.getElementById("close").onclick = () => { if (ctrl) ctrl.abort(); chat.classList.remove("open"); };
+document.getElementById("form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const box = document.getElementById("q"), q = box.value.trim();
+  if (!q || busy || current === null) return;
+  if (!sample) { document.getElementById("unavail").hidden = false; return; }
+  box.value = ""; addMsg("user", q);
+  turns.push({ role: "user", content: turns.length ? q : brief(current) + "\n\nHis question: " + q });
+  const out = addMsg("ai", "Thinking…"); busy = true; ctrl = new AbortController();
+  try {
+    const r = await sample(turns, { cache: false, signal: ctrl.signal, onText: ({ text }) => { out.textContent = text; msgs.scrollTop = msgs.scrollHeight; } });
+    out.textContent = r.text; turns.push({ role: "assistant", content: r.text });
+  } catch (err) {
+    turns.pop();
+    out.textContent = err && err.code === "not_granted" ? "Chat wasn't allowed in this view." :
+      err && err.code === "rate_limited" ? "Too many questions in a row. Wait a minute and ask again." :
+      err && err.code === "cancelled" ? "Stopped." : "Couldn't get an answer. Try again.";
+  } finally { busy = false; ctrl = null; }
+});
+
+render(); applyLayout();
+(async () => { try { sample = await window.claude?.use("sample"); } catch (e) { sample = null; }
+  if (!sample) document.getElementById("unavail").hidden = false; })();
+</script>

@@ -86,4 +86,4 @@ When adding a versioned action, add the matching DTO + AutoMapper map, and remem
 ## Notes
 
 - `NZWalks/.vs/` and the `obj/` build artifacts are tracked in git despite `.gitignore`; changes to them are noise — do not stage or "fix" them unless asked.
-- `WeatherForecastController`/`WeatherForecast.cs` are leftover scaffolding.
+- `WeatherForecastController`/`WeatherForecast.cs` (template scaffolding) have been deleted.
