@@ -15,6 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - [docs/02-MIDDLEWARE-PIPELINE.md](docs/02-MIDDLEWARE-PIPELINE.md) — `Program.cs` DI and pipeline order, with a worked request traversal.
 - [docs/03-FINDINGS-AND-TECH-DEBT.md](docs/03-FINDINGS-AND-TECH-DEBT.md) — known bugs and debt, numbered #1–#20. A snapshot from 2026-08-03: check a finding is still live before acting on it.
 - [docs/04-appendix-glossary.md](docs/04-appendix-glossary.md) — terms used across the set.
+- [docs/05-RUNBOOK-FIRST-ADMIN.md](docs/05-RUNBOOK-FIRST-ADMIN.md) — creating the first Admin (or recovering after the last one is lost) via SQL; needed on any fresh database.
 - [docs/decisions.md](docs/decisions.md) — architecture decision log. Record a choice here when it closes off an alternative someone could reasonably have picked; check it before reversing something that looks arbitrary.
 
 ## Planning
