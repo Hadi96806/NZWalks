@@ -287,6 +287,10 @@ app.MapControllers();
 
 app.Run();
 
+//Top-level statements compile into an internal Program class; making it public lets a test project
+//use WebApplicationFactory<Program> to host the real API in memory (Week 3 integration tests)
+public partial class Program { }
+
 //Add validation on each filed on Create and Update
 //Check if the regionId and difficultyId exist in their tables
 //Support filtration for all columns dynamically 

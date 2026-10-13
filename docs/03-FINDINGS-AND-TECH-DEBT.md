@@ -18,7 +18,8 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 **Why it matters:** some HTTP clients / API gateways sniff or validate the `Content-Type` header; a misspelled MIME type can cause clients to fail to parse the body as JSON even though the body itself is valid JSON.
 **Suggested direction:** fix to `"application/json"` (or just use `WriteAsJsonAsync`, which sets this correctly on its own — it's already being called, so the explicit `ContentType` assignment may be redundant).
 
-### 3. Error message typo: "adminstrator"
+### 3. Error message typo: "adminstrator" — **RESOLVED**
+**Resolution:** the 500 message in `ExceptionHandlerMiddleware` no longer contains the typo (verified 2026-10-13; tracker B5s1). The text below describes the state when the finding was written.
 **File:** `NZWalks.API/Middlewares/ExceptionHandlerMiddleware.cs`
 **Current behavior:** the client-facing error message reads "Something went wrong, please contact adminstrator".
 **Why it matters:** cosmetic, but it's user (developer/support)-facing text that will get quoted in bug reports and screenshots.
@@ -54,8 +55,8 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 **Why it matters:** as soon as a browser-based frontend (a separate origin — different port/host) tries to call this API directly from JavaScript, every request will be blocked by the browser's same-origin policy. This is invisible today because nothing browser-based is calling the API yet.
 **Suggested direction:** decide the allowed origin(s) for the eventual frontend and add an explicit named CORS policy (avoid `AllowAnyOrigin()` combined with credentials/auth headers).
 
-### 8. `WalksController` and `ImagesController` have no role-based authorization — **STILL OPEN**
-Not touched by the JWT hardening work. Roles now mean something (Register can no longer mint an Admin), but they only protect `RegionsController` and `UsersController` until this lands.
+### 8. `WalksController` and `ImagesController` have no role-based authorization — **RESOLVED 2026-10-13**
+**Resolution:** Walks reads require `Reader`/`Admin`, Walks writes and Images upload require `Writer`/`Admin` — the same split as Regions ([ADR-0007](./decisions.md#adr-0007--access-policy-for-walks-and-images)). Image downloads under `/Images` stay public (static files run before authorization). Follow-up debt is in #18–#20. The text below describes the state when the finding was written.
 **Files:** `NZWalks.API/Controllers/WalksController.cs`, `NZWalks.API/Controllers/ImagesController.cs`
 **Current behavior:** `RegionsController` consistently applies `[Authorize(Roles="Reader,Admin")]` (reads) / `[Authorize(Roles="Writer,Admin")]` (writes). `WalksController` and `ImagesController` have no `[Authorize]` attributes at all — every action on them is currently reachable anonymously.
 **Why it matters:** this looks like an oversight rather than an intentional public API surface, given the pattern established on `RegionsController`. As-is, anyone can create/update/delete walks or upload images without authenticating.
@@ -127,18 +128,41 @@ Not touched by the JWT hardening work. Roles now mean something (Register can no
 - Notify the user out-of-band (email) when their account locks, rather than revealing it in the API; consider escalating lockout (5 min, then 15, then 1 h) via a custom `UserManager` if the API ever guards anything valuable.
 - The warnings now logged (`Rate limit hit by…`, `Login refused for locked-out user…`) are the data to base these decisions on.
 
+### 18. New endpoints are public by default; role rules are repeated strings — **OPEN**
+**Files:** every controller; `NZWalks.API/Program.cs` (no `AddAuthorization` policies, no `FallbackPolicy`)
+**Current behavior:**
+- Authorization is opt-in: an action with no `[Authorize]` is anonymous. Finding #8 existed only because someone forgot the attribute.
+- The role split is written as attribute strings on 11 actions across three controllers. Walks, Images and Users use `RoleNames` constants; `RegionsController` still uses the literals `"Reader,Admin"` / `"Writer,Admin"`.
+- Reads require `Reader` or `Admin`, so a user holding only `Writer` can change walks and regions but not read them. Rare today (Register always grants `Reader`, and RevokeRole refuses to remove a user's last role) but possible if an Admin revokes `Reader` from a Writer.
+**Why it matters:** the next controller ships open unless its author remembers; a typo in a literal role string silently locks everyone out of that action; changing who may read means editing every read action.
+**Suggested direction:** set `FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build()` so endpoints fail closed, with `[AllowAnonymous]` on Register and Login. Define named policies (`CanRead` = Reader/Writer/Admin, `CanWrite` = Writer/Admin) in `AddAuthorization` and use `[Authorize(Policy = …)]`. Switch `RegionsController` to the constants or the policies.
+
+### 19. Image upload accepts SVG and stores files under the client's name — **OPEN**
+**Files:** `NZWalks.API/Validators/ImageUploadDtoValidator.cs`, `NZWalks.API/Respositries/LocalImageRepository.cs`, `NZWalks.API/Program.cs` (`UseStaticFiles` for `/Images`)
+**Current behavior:** `.svg` is an allowed extension, and uploads are served back publicly from `/Images` with no `Content-Security-Policy` or `X-Content-Type-Options` header. Files are saved as `{Name}{extension}` from the request.
+**Why it matters:** an SVG can carry script; opened directly from `/Images` it runs on the API's origin (stored XSS). Upload is now Writer-only (#8), which narrows who can plant one, but doesn't remove the risk. Two uploads with the same `Name` overwrite each other, and predictable names let anyone enumerate files.
+**Suggested direction:** drop `.svg` (or sanitise it), serve `/Images` with `Content-Security-Policy: default-src 'none'` and `X-Content-Type-Options: nosniff`, and store files under a generated id (`{Guid}{ext}`) with the display name kept only in the database. Do it together with the Blob Storage move (#10), since both change how files are named and served.
+
+### 20. No `.editorconfig` / `.gitattributes`; 36 nullable warnings — **OPEN, needed before the Week 2 hooks**
+**Files:** repo root (absence), `NZWalks/NZWalks.API/Models/DTO/*` and other models (CS8618)
+**Current behavior:**
+- There is no `.editorconfig`, so `dotnet format` applies its built-in defaults; there is no `.gitattributes`, so line endings depend on each machine (git already warns "LF will be replaced by CRLF" on files edited here).
+- `dotnet build` reports 36 warnings: 35 × CS8618 (non-nullable properties not initialised — mostly DTOs and domain models) and 1 × CS8602 (possible null dereference). The plans have been holding the line at "no more than 36".
+**Why it matters:** Week 2 adds hooks that run `dotnet format` and analyzers after every edit. Without a committed style, the first run reformats whole files, and every later diff mixes real changes with formatting churn; without fixed line endings, the same file can flip between machines. A hook that fails on warnings would fail on all 36 from day one.
+**Suggested direction:** before wiring the hooks, add a `.editorconfig` that matches the current code style and a `.gitattributes` (`* text=auto`, `*.cs eol=crlf`), run `dotnet format` once and commit that as a formatting-only commit. Then either fix the 36 warnings (`required` members or `= default!`/`string.Empty` on DTOs) or make the hook fail only on *new* warnings. See [ADR-0008](./decisions.md#adr-0008--week-2-hooks-what-runs-when-and-what-fails).
+
 ## Summary table
 
 | # | Category | Severity | File(s) |
 |---|---|---|---|
 | 1 | Bug | Medium | `Middlewares/ExceptionHandlerMiddleware.cs` |
 | 2 | Bug | Low | `Middlewares/ExceptionHandlerMiddleware.cs` |
-| 3 | Bug | Cosmetic | `Middlewares/ExceptionHandlerMiddleware.cs` |
+| 3 | Bug | Cosmetic — **resolved** | `Middlewares/ExceptionHandlerMiddleware.cs` |
 | 4 | Security/Config | Medium (blocking, once a frontend exists) | `Program.cs` |
 | 5 | Naming | Low (grows costlier over time) | `Respositries/` |
 | 6 | Naming | Low | `Models/Pagination Result/` |
 | 7 | Structural | High (design decision, not a quick fix) | whole solution |
-| 8 | Security | High | `WalksController.cs`, `ImagesController.cs` |
+| 8 | Security | High — **resolved 2026-10-13** | `WalksController.cs`, `ImagesController.cs` |
 | 9 | Bug | Medium — **resolved 2026-10-08** | `Controllers/AuthController.cs` |
 | 10 | Structural | High (only matters once scaling horizontally) | `Respositries/LocalImageRepository.cs` |
 | 11 | Config | Low — **resolved 2026-10-08** | `appsettings.json`, `Respositries/TokenRepository.cs` |
@@ -148,3 +172,6 @@ Not touched by the JWT hardening work. Roles now mean something (Register can no
 | 15 | Structural | Low (accepted trade-off) | `Program.cs` |
 | 16 | Structural | Medium (only matters once scaled out) | `Program.cs` |
 | 17 | Security/Config | Low | `Program.cs`, `Controllers/AuthController.cs` |
+| 18 | Security | Medium | all controllers, `Program.cs` |
+| 19 | Security | Medium | `Validators/ImageUploadDtoValidator.cs`, `Respositries/LocalImageRepository.cs`, `Program.cs` |
+| 20 | Tooling | Medium (blocks clean Week 2 hooks) | repo root, `Models/DTO/*` |
