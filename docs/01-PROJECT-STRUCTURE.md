@@ -24,7 +24,8 @@ NZWalks.API/
 ├── appsettings.Development.json     # Dev-only Logging overrides
 │
 ├── Constants/
-│   └── RoleNames.cs                # Reader / Writer / Admin as consts (usable in [Authorize(Roles = …)]) + RoleNames.All
+│   ├── RoleNames.cs                # Reader / Writer / Admin as consts (usable in [Authorize(Roles = …)]) + RoleNames.All
+│   └── RateLimitPolicies.cs        # Auth policy name, const so it works in [EnableRateLimiting(…)] (ADR-0006)
 │
 ├── Controllers/                    # HTTP entry points — one controller per resource
 │   ├── AuthController.cs           # api/Auth — Register (always Reader) / Login
@@ -100,11 +101,11 @@ There is no `wwwroot/` folder — static image serving is configured explicitly 
 
 | Controller | Route(s) | Actions | Injected dependencies |
 |---|---|---|---|
-| `AuthController` | `api/Auth` | `POST /Register`, `POST /Login` | `UserManager<IdentityUser>`, `ITokenRepository` |
+| `AuthController` | `api/Auth` (anonymous; class-level `[EnableRateLimiting(RateLimitPolicies.Auth)]`, 5 req/min per IP) | `POST /Register`, `POST /Login` (lockout-aware) | `UserManager<IdentityUser>`, `SignInManager<IdentityUser>`, `ITokenRepository`, `ILogger<AuthController>` |
 | `UsersController` | `api/Users` (class-level `[Authorize(Roles = Admin)]`) | `POST /GrantRole`, `POST /RevokeRole` | `UserManager<IdentityUser>`, `ILogger<UsersController>` |
-| `ImagesController` | `api/Images` | `POST /Upload` | `IImageRepository` |
-| `RegionsController` | `api/v{version}/Regions` (v1.0, v2.0) | `GetAllV1`, `GetAllV2`, `GetById`, `Create`, `Update`, `Delete` | `IRegionRespository`, `IMapper`, `ILogger<RegionsController>` |
-| `WalksController` | `api/Walks` | `GetAll` (filter + sort + pagination), `GetById`, `Create`, `Update`, `Delete` | `IMapper`, `IWalkRepository` |
+| `ImagesController` | `api/Images` (`Upload`: Writer/Admin) | `POST /Upload` | `IImageRepository` |
+| `RegionsController` | `api/v{version}/Regions` (v1.0, v2.0; reads Reader/Admin, writes Writer/Admin) | `GetAllV1`, `GetAllV2`, `GetById`, `Create`, `Update`, `Delete` | `IRegionRespository`, `IMapper`, `ILogger<RegionsController>` |
+| `WalksController` | `api/Walks` (reads Reader/Admin, writes Writer/Admin — ADR-0007) | `GetAll` (filter + sort + pagination), `GetById`, `Create`, `Update`, `Delete` | `IMapper`, `IWalkRepository` |
 
 Controllers are deliberately thin: their request DTOs are validated before the action runs (a FluentValidation validator in `Validators/`, wired by `AddFluentValidationAutoValidation()`), they call a repository, map the result with AutoMapper, and return it. No EF Core or SQL appears in a controller file.
 

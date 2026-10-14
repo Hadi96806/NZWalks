@@ -12,6 +12,9 @@ Read in this order:
 2. **[02-MIDDLEWARE-PIPELINE.md](./02-MIDDLEWARE-PIPELINE.md)** — `Program.cs` broken into DI registration order and HTTP pipeline order, plus a worked example of a request traversing every middleware layer in sequence (with a Mermaid diagram).
 3. **[03-FINDINGS-AND-TECH-DEBT.md](./03-FINDINGS-AND-TECH-DEBT.md)** — real bugs, gaps, and structural issues found while writing docs 1–2, framed as a punch list for upcoming work rather than urgent incidents.
 4. **[04-appendix-glossary.md](./04-appendix-glossary.md)** — short definitions of terms used throughout (DTO, middleware, repository pattern, claims, migrations, etc.) for anyone using this as onboarding material.
+5. **[05-RUNBOOK-FIRST-ADMIN.md](./05-RUNBOOK-FIRST-ADMIN.md)** — operational runbook: creating the first Admin on a fresh database, since no API call can do it.
+
+Alongside the numbered set, **[decisions.md](./decisions.md)** is the architecture decision log (ADR-0001 onward): why things are the way they are, and which alternatives were turned down.
 
 ## Ground rules for this documentation set
 
