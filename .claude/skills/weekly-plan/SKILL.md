@@ -23,6 +23,8 @@ scheduled" is worth the whole session.
 | Decision log | `docs/decisions.md` |
 | Conventions | `CLAUDE.md` at repo root |
 | Week 1 tracker | `https://claude.ai/artifact/UcgFcrcwRmYXsvadtbsi9Z` |
+| Week 2 tracker | `https://claude.ai/artifact/XHigj6tKJTftQKHdCkYbeh` (source `docs/plans/week2-tracker.html`; copy it for later weeks) |
+| Notion week pages | under "14 weeks Program" `3f062584db32817f8ab9ead496f2d755`: Week 1 `3f062584db32815e917fcbbdb3ceadeb`, Week 2 `3f962584db328128829cfa63cf7ea5c6` |
 
 Budget is **5 hours per week**. Treat that as a hard constraint, not an aspiration — the plan's
 job is to fit, and to say plainly when the week as written does not.
@@ -32,6 +34,11 @@ job is to fit, and to say plainly when the week as written does not.
 Trackers store completion state in the artifact's `db` under `progress/week<N>`. Read it with
 the `ArtifactData` tool (`action: "get"`, collection `progress`, doc id `week<N-1>`) before
 planning anything.
+
+**Ticks are claims, not facts.** Check each ticked item against the code. In Week 2's planning,
+the Week 1 tracker had rate limiting, the Walks/Images `[Authorize]` and `partial class Program`
+ticked, and none of them were in the code. Carry such items into the new week, under a visible
+"ticked but not in the code" banner. Leave the old tracker's ticks alone.
 
 This matters because unfinished work from last week is the first input to this week, and asking
 the user "what did you finish?" when the answer is already recorded reads as not paying
@@ -116,6 +123,21 @@ Structure — two sections, each containing:
 
 The header carries an overall percentage and a sync indicator. The footer carries the three
 buckets from step 4 plus the drop order from step 6.
+
+**Every task card gets a plan button** (he asked for this 2026-10-14):
+- If the task already has a plan artifact, show **Open plan** linking it.
+- Otherwise show **Make a plan**, a link to
+  `claude://code/new?folder=<repo>&q=<prompt>`. That opens a new desktop Claude Code session.
+  The prompt asks it to use the `task-plan` skill on that task id and title, to rely on this
+  week's tracker as the weekly plan (so `task-plan` needn't ask), to build the plan the same way
+  as the Week 1 plan artifacts, and to file itself under the "NZWalks" sidebar group. The prompt
+  must not start with `/`. Add a **Copy prompt** fallback for when the link doesn't open the app.
+- Copy the mechanics from `docs/plans/week2-tracker.html` (`planPrompt`, `planUrl`). Republish
+  after the first publish so the prompt carries the tracker's own URL.
+
+Then create the Notion **Week N** page under 14 weeks Program, if it doesn't exist. Give it one
+intro line linking the tracker, and an `## Interactive plans` list. Each plan made from a Make a
+plan button is added to that list by `task-plan`. Record the page id in the constants table.
 
 Design notes that matter: render the whole checklist from data in the page source, since the
 checklist *definition* is content; keep only the `done` map in `db`, since completion is the

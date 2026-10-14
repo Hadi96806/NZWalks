@@ -30,7 +30,13 @@ Be fast: read only what this action needs. Be smart: verify in the code, never f
 ## Step 1 — Pin down the action and the weekly plan
 
 - Restate the action in one line. If it maps to a tracker subtask, name its id (e.g. B3s1).
-- **Always ask which weekly plan to rely on** before comparing against one — never infer it from
+- **Started from a tracker's "Make a plan" button?** The prompt names the task id, its title and
+  the tracker URL, and says to rely on that tracker. Then don't ask which weekly plan: read that
+  tracker's task card (its subtasks, the decisions above it, and the footer's findings and
+  collisions) as the brief. Still ask about anything the card leaves open. When the plan is
+  published, add it to that week's Notion `## Interactive plans` list. Also ask him whether the
+  tracker's card should switch from Make a plan to Open plan; that's a tracker republish.
+- Otherwise, **always ask which weekly plan to rely on** before comparing against one — never infer it from
   the date or the conversation. Offer the options you can see (the known week trackers, the
   Notion roadmap week, a `docs/plans/` file, or "none — plan against the code only"), and say in
   each option's description what that source currently says about this action.
@@ -148,7 +154,8 @@ Every plan lives in these places:
    "Ask Claude chat and Implement on every subtask". Create that heading if it's missing.
    If the Week N page doesn't exist, create it under 14 weeks Program
    (page `3f062584db32817f8ab9ead496f2d755`) and record its id here.
-   - Known week pages: Week 1 = `3f062584db32815e917fcbbdb3ceadeb`.
+   - Known week pages: Week 1 = `3f062584db32815e917fcbbdb3ceadeb`,
+     Week 2 = `3f962584db328128829cfa63cf7ea5c6`.
    - Notion can't embed an artifact (it only embeds uploaded HTML files), so a link is the
      closest thing to putting the artifact under the week.
 4. Give him the artifact link and the local path.
