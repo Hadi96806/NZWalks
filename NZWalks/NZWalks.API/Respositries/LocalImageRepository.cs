@@ -25,8 +25,10 @@ namespace NZWalks.API.Respositries
             await image.File.CopyToAsync(stream, cancellationToken);
 
             //Create File path https://localhost:1234/images/image.png
-            var urlFilePath = $"{httpContextAccessor.HttpContext.Request.Scheme}://{httpContextAccessor.HttpContext.Request.Host}" +
-                $"{httpContextAccessor.HttpContext.Request.PathBase}/Images/{image.Name}{image.FileExtension}";
+            //HttpContext is only null outside a request; an upload always happens inside one
+            var request = httpContextAccessor.HttpContext?.Request
+                ?? throw new InvalidOperationException("An image upload needs an active HTTP request.");
+            var urlFilePath = $"{request.Scheme}://{request.Host}{request.PathBase}/Images/{image.Name}{image.FileExtension}";
             image.FilePath = urlFilePath;
 
             //Add image to Images table

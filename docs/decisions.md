@@ -431,9 +431,10 @@ wired in the committed `.claude/settings.json`:
 
 **Failure rule: errors, plus new warnings.** `warning-baseline.txt` lists the accepted warnings as
 `file|code|message` (no line numbers, so unrelated edits don't make an old warning look new); the
-Stop hook fails on any warning not in it, and asks Claude to fix or ask, never to silence. Today it
-holds the 36 existing warnings (34 distinct keys). After A2 fixes them, run
-`.claude/hooks/update-warning-baseline.ps1` — the baseline becomes empty and every warning fails.
+Stop hook fails on any warning not in it, and asks Claude to fix or ask, never to silence. It
+started with the 36 existing warnings (34 distinct keys). **A2 fixed them on 2026-10-15 and the
+baseline is now empty**, so every warning fails the Stop hook. Re-run
+`.claude/hooks/update-warning-baseline.ps1` only to knowingly accept new warnings.
 
 ### Consequences
 

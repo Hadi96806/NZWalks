@@ -145,8 +145,9 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 **Why it matters:** an SVG can carry script; opened directly from `/Images` it runs on the API's origin (stored XSS). Upload is now Writer-only (#8), which narrows who can plant one, but doesn't remove the risk. Two uploads with the same `Name` overwrite each other, and predictable names let anyone enumerate files.
 **Suggested direction:** drop `.svg` (or sanitise it), serve `/Images` with `Content-Security-Policy: default-src 'none'` and `X-Content-Type-Options: nosniff`, and store files under a generated id (`{Guid}{ext}`) with the display name kept only in the database. Do it together with the Blob Storage move (#10), since both change how files are named and served.
 
-### 20. No `.editorconfig` / `.gitattributes`; 36 nullable warnings — **PARTLY RESOLVED 2026-10-15: style baseline done, 36 warnings remain (Week 2 A2)**
-**Resolved (A1):** `.editorconfig` (whitespace and layout rules only, CRLF, no `charset`) and `.gitattributes` (`* text=auto`, CRLF working copies for source file types) are at the repo root, and one formatting-only commit ran `dotnet format whitespace` over the solution. `dotnet format whitespace NZWalks/NZWalks.sln --verify-no-changes` exits 0, and the format hook is now active. The bullets below describe the state before A1; only the warnings bullet is still live.
+### 20. No `.editorconfig` / `.gitattributes`; 36 nullable warnings — **RESOLVED 2026-10-15 (Week 2 A1 + A2)**
+**Resolved (A2):** `dotnet build` now reports **0 warnings**. 31 non-nullable strings on DTOs and domain models got `= string.Empty` (validators' `NotEmpty()` rejects `""` and `null` identically, and Swagger is unchanged); the four non-string properties (`File` on `Image` and `ImageUploadDto`, `Difficulty` and `Region` on `WalkDto`) got `= null!` with a comment saying who fills them; the one `CS8602` in `LocalImageRepository` now throws a clear `InvalidOperationException` when there is no `HttpContext`. `.claude/hooks/warning-baseline.txt` is empty, so the Stop hook fails on any warning.
+**Resolved (A1):** `.editorconfig` (whitespace and layout rules only, CRLF, no `charset`) and `.gitattributes` (`* text=auto`, CRLF working copies for source file types) are at the repo root, and one formatting-only commit ran `dotnet format whitespace` over the solution. `dotnet format whitespace NZWalks/NZWalks.sln --verify-no-changes` exits 0, and the format hook is now active. The bullets below describe the state before A1 and A2.
 **Files:** repo root (absence), `NZWalks/NZWalks.API/Models/DTO/*` and other models (CS8618)
 **Current behavior:**
 - There is no `.editorconfig`, so `dotnet format` applies its built-in defaults; there is no `.gitattributes`, so line endings depend on each machine (git already warns "LF will be replaced by CRLF" on files edited here).
@@ -177,4 +178,4 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 | 17 | Security/Config | Low | `Program.cs`, `Controllers/AuthController.cs` |
 | 18 | Security | Medium | all controllers, `Program.cs` |
 | 19 | Security | Medium | `Validators/ImageUploadDtoValidator.cs`, `Respositries/LocalImageRepository.cs`, `Program.cs` |
-| 20 | Tooling | Medium — **partly resolved 2026-10-15** (style baseline done; 36 warnings remain, A2) | repo root, `Models/DTO/*` |
+| 20 | Tooling | Medium — **resolved 2026-10-15** (style baseline A1, 0 warnings A2) | repo root, `Models/DTO/*` |
