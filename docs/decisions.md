@@ -424,11 +424,16 @@ wired in the committed `.claude/settings.json`:
   pass through, so it never loops; locked DLLs (app running) are reported as unverified, not as
   errors.
 
-Still to add: `dotnet format whitespace --include <file>` on PostToolUse once the `.editorconfig` +
-format commit lands (finding #20, Week 2 A1), and failing on warnings once the 36 are fixed (A2).
+- `format-on-edit.ps1` — **PostToolUse** on Edit/Write/MultiEdit. Runs
+  `dotnet format whitespace --folder --include <file>` on the one edited `.cs` file (~2 s). It does
+  nothing until the repo has an `.editorconfig` (finding #20, Week 2 A1), so it can never reformat
+  whole files against defaults.
 
-Why errors-only: the 36 existing warnings would fail every turn today, and a baseline comparison
-is throwaway work when A2 removes them this week.
+**Failure rule: errors, plus new warnings.** `warning-baseline.txt` lists the accepted warnings as
+`file|code|message` (no line numbers, so unrelated edits don't make an old warning look new); the
+Stop hook fails on any warning not in it, and asks Claude to fix or ask, never to silence. Today it
+holds the 36 existing warnings (34 distinct keys). After A2 fixes them, run
+`.claude/hooks/update-warning-baseline.ps1` — the baseline becomes empty and every warning fails.
 
 ### Consequences
 

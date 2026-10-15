@@ -31,8 +31,28 @@ $output = & dotnet build (Join-Path $root 'NZWalks/NZWalks.sln') -nologo -v q 2>
 $code = $LASTEXITCODE
 
 if ($code -eq 0) {
-    Set-Content $stamp $latestTicks
-    exit 0
+    # Warning gate: fail only on warnings not in warning-baseline.txt (ADR-0008). After A2 empties
+    # the baseline, every warning fails. A build MSBuild considers up to date prints no warnings,
+    # so this can miss one; it never invents one.
+    . (Join-Path $PSScriptRoot 'warnings.ps1')
+    $baselineFile = Join-Path $PSScriptRoot 'warning-baseline.txt'
+    $baseline = if (Test-Path $baselineFile) { @(Get-Content $baselineFile | Where-Object { $_ }) } else { @() }
+    $new = @(Get-WarningKeys $output $root | Where-Object { $baseline -notcontains $_ })
+    if ($new.Count -eq 0) {
+        Set-Content $stamp $latestTicks
+        exit 0
+    }
+    [Console]::Error.WriteLine(@"
+NEW BUILD WARNINGS (.claude/hooks/build-on-stop.ps1): the build passed but added $($new.Count) warning(s) not in warning-baseline.txt:
+$(($new | Select-Object -First 25 | ForEach-Object { '  ' + $_.Replace('|', ' : ') }) -join "`n")
+
+Report them to the user: which warnings, in which files, and whether your change caused them.
+- If your change caused it and the fix is clear (a null check, an initialiser, a nullable annotation), fix it,
+  rebuild, and say what you changed.
+- If it comes from the user's code or a pull, or the right fix is a design choice, ask the user. Never silence a
+  warning (pragma, NoWarn, '!' on a value that can really be null) to pass this hook.
+"@)
+    exit 2
 }
 
 $errors = @($output -split "`r?`n" | Where-Object { $_ -match ': error ' } | Select-Object -Unique)

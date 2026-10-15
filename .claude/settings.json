@@ -11,6 +11,12 @@
     ],
     "PostToolUse": [
       {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$CLAUDE_PROJECT_DIR/.claude/hooks/format-on-edit.ps1\"", "timeout": 60 }
+        ]
+      },
+      {
         "matcher": "Bash|PowerShell",
         "hooks": [
           { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-conflicts.ps1\"", "timeout": 15 }
