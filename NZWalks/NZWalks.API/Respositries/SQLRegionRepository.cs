@@ -55,17 +55,17 @@ namespace NZWalks.API.Respositries
         public async Task<Region?> UpdateAsync(Guid id, Region region, CancellationToken cancellationToken = default)
         {
             var regionToUpdate = await dbContext.Regions.FindAsync(new object?[] { id }, cancellationToken);
-            if(regionToUpdate == null)
+            if (regionToUpdate == null)
             {
                 return null;
             }
 
-            if(!string.IsNullOrEmpty(region.Name))
+            if (!string.IsNullOrEmpty(region.Name))
             {
                 regionToUpdate.Name = region.Name;
             }
 
-            if(!string.IsNullOrEmpty(region.Code))
+            if (!string.IsNullOrEmpty(region.Code))
             {
                 regionToUpdate.Code = region.Code;
             }

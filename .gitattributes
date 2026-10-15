@@ -1,0 +1,26 @@
+# Line endings are a property of the repo, not of each machine's core.autocrlf.
+# Inside the repository everything is stored as LF; the working copy gets CRLF for the
+# Windows-first file types below. Keep these in step with end_of_line in .editorconfig,
+# or `dotnet format` and git will fight over every file.
+
+# git decides what is text, and normalises it to LF in the repository
+* text=auto
+
+# What the working copy gets on checkout, on any machine
+*.cs      text=auto eol=crlf
+*.csproj  text=auto eol=crlf
+*.sln     text=auto eol=crlf
+*.json    text=auto eol=crlf
+*.ps1     text=auto eol=crlf
+*.md      text=auto eol=crlf
+
+# Bash scripts break on CRLF
+*.sh      text eol=lf
+
+# Binary files: never touch them
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.ico     binary
+*.webp    binary

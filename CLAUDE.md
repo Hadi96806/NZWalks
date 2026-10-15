@@ -36,7 +36,7 @@ dotnet run --project NZWalks.API              # run (https profile → https://l
 dotnet run --project NZWalks.API --launch-profile http   # http only → http://localhost:5282
 ```
 
-There is no test project and no linter config in the repo — `dotnet test` has nothing to run.
+There is no test project, so `dotnet test` has nothing to run. Layout is enforced by `.editorconfig` (whitespace and layout rules only — no C# style rules) and `.gitattributes` (LF in the repo, CRLF in the working copy); check it with `dotnet format whitespace NZWalks/NZWalks.sln --verify-no-changes`. A hook formats each `.cs` file Claude edits.
 
 The installed SDK is 10.x while the project targets `net8.0`; builds work via roll-forward, but do not "upgrade" the TFM without being asked.
 

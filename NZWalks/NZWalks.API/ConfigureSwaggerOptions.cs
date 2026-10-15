@@ -20,7 +20,7 @@ namespace NZWalks.API
 
         public void Configure(SwaggerGenOptions options)
         {
-            foreach( var item in apiVersionDescriptionProvider.ApiVersionDescriptions)
+            foreach (var item in apiVersionDescriptionProvider.ApiVersionDescriptions)
             {
                 options.SwaggerDoc(item.GroupName, CreateVersionInfo(item));
             }
@@ -31,7 +31,7 @@ namespace NZWalks.API
             var info = new OpenApiInfo
             {
                 Title = "Versioned API",
-                Version =  description.ApiVersion.ToString(),
+                Version = description.ApiVersion.ToString(),
             };
             return info;
         }

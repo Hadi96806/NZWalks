@@ -8,7 +8,7 @@ namespace NZWalks.API.Data
     {
         public NZWalksAuthDbContext(DbContextOptions<NZWalksAuthDbContext> options) : base(options)
         {
-                
+
         }
 
         protected override void OnModelCreating(ModelBuilder builder)
@@ -20,7 +20,7 @@ namespace NZWalks.API.Data
             var adminRoleId = "6293730a-ab48-452b-b9b8-c06858ba016c";
 
             var roles = new List<IdentityRole>
-            { 
+            {
                 new IdentityRole
                 {
                     Id = readerRoleId,

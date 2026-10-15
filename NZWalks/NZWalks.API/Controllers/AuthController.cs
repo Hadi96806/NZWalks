@@ -34,7 +34,8 @@ namespace NZWalks.API.Controllers
         [Route("Register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequestDto registerRequestDto)
         {
-            var identityUser = new IdentityUser {
+            var identityUser = new IdentityUser
+            {
                 UserName = registerRequestDto.Email,
                 Email = registerRequestDto.Email
             };
@@ -81,7 +82,7 @@ namespace NZWalks.API.Controllers
         {
             var user = await userManager.FindByEmailAsync(logInRequestDto.Email);
 
-            if(user != null)
+            if (user != null)
             {
                 //One call: refuses a locked-out account, counts a wrong password towards lockout,
                 //and resets the count on success. Issues no cookie - the JWT below is the only credential.
@@ -100,8 +101,8 @@ namespace NZWalks.API.Controllers
                     {
                         //CreateToken
                         var jwtToken = tokenRepository.CreateToken(user, roles.ToList());
-                        var response = new LoginResponseDto 
-                        { 
+                        var response = new LoginResponseDto
+                        {
                             JwtToken = jwtToken
                         };
 

@@ -46,7 +46,7 @@ namespace NZWalks.API.Controllers
         {
             var walk = await walkRepository.GetByIdAsync(id, cancellationToken);
 
-            if(walk == null)
+            if (walk == null)
             {
                 return Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Walk with id {id} was not found.");
             }
@@ -67,7 +67,7 @@ namespace NZWalks.API.Controllers
 
             var walkDto = await walkRepository.CreateAsync(walkDomainModal, cancellationToken);
 
-            return CreatedAtAction( nameof(GetById), new { Id = walkDto.Id } ,walkDto); 
+            return CreatedAtAction(nameof(GetById), new { Id = walkDto.Id }, walkDto);
         }
 
         // Update Walk
@@ -81,7 +81,7 @@ namespace NZWalks.API.Controllers
 
             var updatedWalk = await walkRepository.UpdateAsync(id, walkDomainModal, cancellationToken);
 
-            if(updatedWalk == null)
+            if (updatedWalk == null)
                 return Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Walk with id {id} was not found.");
 
             var updatedWalkDto = mapper.Map<WalkDto>(updatedWalk);
@@ -96,7 +96,7 @@ namespace NZWalks.API.Controllers
         public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken cancellationToken)
         {
             var walkToDelete = await walkRepository.DeleteAsync(id, cancellationToken);
-            if(walkToDelete == null)
+            if (walkToDelete == null)
                 return Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Walk with id {id} was not found.");
 
             var waltDto = mapper.Map<WalkDto>(walkToDelete);

@@ -32,7 +32,7 @@ namespace NZWalks.API.Controllers
 
         //Get All Regions V1
         [HttpGet]
-        [Authorize(Roles="Reader,Admin")]
+        [Authorize(Roles = "Reader,Admin")]
         [MapToApiVersion("1.0")]
         public async Task<IActionResult> GetAllV1(CancellationToken cancellationToken)
         {
@@ -48,7 +48,7 @@ namespace NZWalks.API.Controllers
 
         //Get All Regions v2
         [HttpGet]
-        [Authorize(Roles="Reader,Admin")]
+        [Authorize(Roles = "Reader,Admin")]
         [MapToApiVersion("2.0")]
         public async Task<IActionResult> GetAllV2(CancellationToken cancellationToken)
         {
@@ -65,8 +65,9 @@ namespace NZWalks.API.Controllers
         //Get Region By Id
         [HttpGet]
         [Route("{id:Guid}")]
-        [Authorize(Roles ="Reader,Admin")]
-        public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken) {
+        [Authorize(Roles = "Reader,Admin")]
+        public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
+        {
             //var region = dbContext.Regions.FirstOrDefault(x=>x.Id==id);
             var region = await regionRepositry.GetByIdAsync(id, cancellationToken);
             if (region == null)
@@ -74,13 +75,14 @@ namespace NZWalks.API.Controllers
                 return Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Region with id {id} was not found.");
             }
             var regionDto = mapper.Map<RegionDtoV1>(region);
-            return Ok(regionDto); 
+            return Ok(regionDto);
         }
 
         //Create New Region
         [HttpPost]
         [Authorize(Roles = "Writer,Admin")]
-        public async Task<IActionResult> Create(AddRegionDto addRegionDto, CancellationToken cancellationToken) {
+        public async Task<IActionResult> Create(AddRegionDto addRegionDto, CancellationToken cancellationToken)
+        {
             var regionDomainModal = mapper.Map<Region>(addRegionDto);
 
             await regionRepositry.CreateAsync(regionDomainModal, cancellationToken);
@@ -116,11 +118,11 @@ namespace NZWalks.API.Controllers
         public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken cancellationToken)
         {
             var regionDomainModel = await regionRepositry.DeleteAsync(id, cancellationToken);
-            if(regionDomainModel == null)
+            if (regionDomainModel == null)
             {
                 return Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Region with id {id} was not found.");
             }
-         
+
             var regionDto = mapper?.Map<RegionDtoV1>(regionDomainModel);
             return Ok(regionDto);
         }

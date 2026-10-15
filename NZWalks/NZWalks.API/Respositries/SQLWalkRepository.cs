@@ -44,7 +44,7 @@ namespace NZWalks.API.Respositries
         public async Task<WalkPageResult> GetAllAsync(string? filtertOn = null, string? filterQuery = null, string? sortBy = null, bool isAscending = true, int pageNumber = 1, int pageSize = 10, CancellationToken cancellationToken = default)
         {
             var walks = dbContext.Walks.AsNoTracking().Include(walks => walks.Difficulty).Include(walks => walks.Region).AsQueryable();
-             //filtering
+            //filtering
             if (!string.IsNullOrEmpty(filtertOn) && !string.IsNullOrEmpty(filterQuery))
             {
                 if (filtertOn.Equals("Name", StringComparison.OrdinalIgnoreCase))
@@ -70,7 +70,8 @@ namespace NZWalks.API.Respositries
             var items = await walks.Skip(skipResults).Take(pageSize).ToListAsync(cancellationToken);
             var totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
 
-            return new WalkPageResult { 
+            return new WalkPageResult
+            {
                 Items = items,
                 PageNumber = pageNumber,
                 PageSize = pageSize,

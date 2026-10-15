@@ -89,10 +89,10 @@ builder.Services.AddApiVersioning(options =>
 builder.Services.AddHttpContextAccessor();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen( options => 
+builder.Services.AddSwaggerGen(options =>
 {
     options.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-    { 
+    {
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.ApiKey,
@@ -115,18 +115,18 @@ builder.Services.AddSwaggerGen( options =>
             },
             new List<String>()
         }
-    }) ;
+    });
 });
 builder.Services.ConfigureOptions<ConfigureSwaggerOptions>();
 
-builder.Services.AddDbContext<NZWalksDbContext>(options=>
+builder.Services.AddDbContext<NZWalksDbContext>(options =>
 options.UseSqlServer(builder.Configuration.GetConnectionString("NZWalksConnectionString")));
 
-builder.Services.AddDbContext<NZWalksAuthDbContext>(options=>
+builder.Services.AddDbContext<NZWalksAuthDbContext>(options =>
 options.UseSqlServer(builder.Configuration.GetConnectionString("NZWalksAuthConnectionString")));
 
-builder.Services.AddScoped<IRegionRespository , SQLRegionRepository>();
-builder.Services.AddScoped<IWalkRepository , SQLWalkRepository>();
+builder.Services.AddScoped<IRegionRespository, SQLRegionRepository>();
+builder.Services.AddScoped<IWalkRepository, SQLWalkRepository>();
 builder.Services.AddScoped<ITokenRepository, TokenRepository>();
 builder.Services.AddScoped<IImageRepository, LocalImageRepository>();
 
@@ -161,8 +161,8 @@ var jwtKey = RequireSecret("Jwt:Key");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
-    options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters 
-    { 
+    options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+    {
         ValidateIssuer = true,
         ValidateAudience = true,
         ValidateLifetime = true,
@@ -251,11 +251,12 @@ var versionDescriptionProvider =
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI( options => {
+    app.UseSwaggerUI(options =>
+    {
         foreach (var description in versionDescriptionProvider.ApiVersionDescriptions)
         {
             options.SwaggerEndpoint($"/swagger/{description.GroupName}/swagger.json"
-                ,description.GroupName.ToUpperInvariant());
+                , description.GroupName.ToUpperInvariant());
         }
     });
 }

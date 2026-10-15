@@ -10,7 +10,7 @@ namespace NZWalks.API.Respositries
     {
         private readonly IConfiguration config;
 
-        public TokenRepository (IConfiguration config)
+        public TokenRepository(IConfiguration config)
         {
             this.config = config;
         }
@@ -35,7 +35,7 @@ namespace NZWalks.API.Respositries
 
             foreach (var role in roles)
             {
-                claims.Add( new Claim(ClaimTypes.Role, role));
+                claims.Add(new Claim(ClaimTypes.Role, role));
             }
 
             var jwtKey = config["Jwt:Key"]

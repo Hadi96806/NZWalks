@@ -6,13 +6,15 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 
 ## Bugs
 
-### 1. `ExceptionHandlerMiddleware` error id is always `Guid.Empty`
+### 1. `ExceptionHandlerMiddleware` error id is always `Guid.Empty` — **RESOLVED** (found already fixed 2026-10-15)
+**Resolution:** the id is now `Guid.NewGuid()` at `Middlewares/ExceptionHandlerMiddleware.cs:103`. The text below describes the state when the finding was written.
 **File:** `NZWalks.API/Middlewares/ExceptionHandlerMiddleware.cs`
 **Current behavior:** the error id is generated with `new Guid()` — the parameterless constructor, which always produces `00000000-0000-0000-0000-000000000000`, not a random value.
 **Why it matters:** the whole point of returning an error id to the client is so they can quote it back for support/debugging and you can grep logs for that exact id. Right now every single error response has the *same* id, so it's useless as a correlation key.
 **Suggested direction:** change to `Guid.NewGuid()`.
 
-### 2. Response `ContentType` typo: `"Aplication/json"`
+### 2. Response `ContentType` typo: `"Aplication/json"` — **RESOLVED** (found already fixed 2026-10-15)
+**Resolution:** the explicit `ContentType` assignment is gone; the response is written with `WriteAsJsonAsync(..., contentType: "application/problem+json")` at `Middlewares/ExceptionHandlerMiddleware.cs:153`, so there is no misspelt MIME type left. The text below describes the state when the finding was written.
 **File:** `NZWalks.API/Middlewares/ExceptionHandlerMiddleware.cs`
 **Current behavior:** the 500 response sets `ContentType = "Aplication/json"` (missing a "p").
 **Why it matters:** some HTTP clients / API gateways sniff or validate the `Content-Type` header; a misspelled MIME type can cause clients to fail to parse the body as JSON even though the body itself is valid JSON.
@@ -143,7 +145,8 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 **Why it matters:** an SVG can carry script; opened directly from `/Images` it runs on the API's origin (stored XSS). Upload is now Writer-only (#8), which narrows who can plant one, but doesn't remove the risk. Two uploads with the same `Name` overwrite each other, and predictable names let anyone enumerate files.
 **Suggested direction:** drop `.svg` (or sanitise it), serve `/Images` with `Content-Security-Policy: default-src 'none'` and `X-Content-Type-Options: nosniff`, and store files under a generated id (`{Guid}{ext}`) with the display name kept only in the database. Do it together with the Blob Storage move (#10), since both change how files are named and served.
 
-### 20. No `.editorconfig` / `.gitattributes`; 36 nullable warnings — **OPEN, needed before the Week 2 hooks**
+### 20. No `.editorconfig` / `.gitattributes`; 36 nullable warnings — **PARTLY RESOLVED 2026-10-15: style baseline done, 36 warnings remain (Week 2 A2)**
+**Resolved (A1):** `.editorconfig` (whitespace and layout rules only, CRLF, no `charset`) and `.gitattributes` (`* text=auto`, CRLF working copies for source file types) are at the repo root, and one formatting-only commit ran `dotnet format whitespace` over the solution. `dotnet format whitespace NZWalks/NZWalks.sln --verify-no-changes` exits 0, and the format hook is now active. The bullets below describe the state before A1; only the warnings bullet is still live.
 **Files:** repo root (absence), `NZWalks/NZWalks.API/Models/DTO/*` and other models (CS8618)
 **Current behavior:**
 - There is no `.editorconfig`, so `dotnet format` applies its built-in defaults; there is no `.gitattributes`, so line endings depend on each machine (git already warns "LF will be replaced by CRLF" on files edited here).
@@ -155,8 +158,8 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 
 | # | Category | Severity | File(s) |
 |---|---|---|---|
-| 1 | Bug | Medium | `Middlewares/ExceptionHandlerMiddleware.cs` |
-| 2 | Bug | Low | `Middlewares/ExceptionHandlerMiddleware.cs` |
+| 1 | Bug | Medium — **resolved** | `Middlewares/ExceptionHandlerMiddleware.cs` |
+| 2 | Bug | Low — **resolved** | `Middlewares/ExceptionHandlerMiddleware.cs` |
 | 3 | Bug | Cosmetic — **resolved** | `Middlewares/ExceptionHandlerMiddleware.cs` |
 | 4 | Security/Config | Medium (blocking, once a frontend exists) | `Program.cs` |
 | 5 | Naming | Low (grows costlier over time) | `Respositries/` |
@@ -174,4 +177,4 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 | 17 | Security/Config | Low | `Program.cs`, `Controllers/AuthController.cs` |
 | 18 | Security | Medium | all controllers, `Program.cs` |
 | 19 | Security | Medium | `Validators/ImageUploadDtoValidator.cs`, `Respositries/LocalImageRepository.cs`, `Program.cs` |
-| 20 | Tooling | Medium (blocks clean Week 2 hooks) | repo root, `Models/DTO/*` |
+| 20 | Tooling | Medium — **partly resolved 2026-10-15** (style baseline done; 36 warnings remain, A2) | repo root, `Models/DTO/*` |
