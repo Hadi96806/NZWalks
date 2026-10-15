@@ -34,7 +34,7 @@ ones that are inconvenient. An entry that lists only upsides is not finished.
 | [0005](#adr-0005--token-lifetime-and-clock-skew) | Token lifetime and clock skew | Accepted | 2026-10-08 |
 | [0006](#adr-0006--rate-limiting-and-account-lockout) | Rate limiting and account lockout | Accepted | 2026-10-13 |
 | [0007](#adr-0007--access-policy-for-walks-and-images) | Access policy for Walks and Images | Accepted | 2026-10-13 |
-| [0008](#adr-0008--week-2-hooks-what-runs-when-and-what-fails) | Week 2 hooks: what runs when, and what fails | Open | 2026-10-13 |
+| [0008](#adr-0008--week-2-hooks-what-runs-when-and-what-fails) | Week 2 hooks: what runs when, and what fails | Accepted | 2026-10-15 |
 
 ---
 
@@ -382,7 +382,7 @@ the project defines a public audience yet. Revisit if a public frontend appears.
 
 ## ADR-0008 — Week 2 hooks: what runs when, and what fails
 
-**Status:** Open · **Date:** 2026-10-13
+**Status:** Accepted · **Date:** 2026-10-15 (opened 2026-10-13)
 
 ### Context
 
@@ -407,10 +407,28 @@ existing nullable warnings (finding #20). A full `dotnet build` takes ~25 s here
 
 ### Decision
 
-_Not yet taken._ Recommended direction: **option 3 for timing** (`dotnet format --include <file>`
-on PostToolUse, `dotnet build` on Stop) and **"new warnings only"** until the 36 are fixed, then
-tighten to any warning. Prerequisite: commit `.editorconfig` + `.gitattributes` and a one-off
-formatting commit first (finding #20), so the hooks never produce whole-file churn.
+**Option 3 for timing, errors-only for now.** Scripts live in `.claude/hooks/` (PowerShell),
+wired in the committed `.claude/settings.json`:
+
+- `guard-secrets.ps1` — **PreToolUse** on Edit/Write/MultiEdit. Blocks content that looks like a
+  secret (connection-string password, `sa` login, a JSON `Key` value, private key, long key-like
+  string outside source files). Added beyond the original options because the repo is public and
+  secrets leaked once already (ADR-0003).
+- `check-conflicts.ps1` — **PostToolUse** on Bash/PowerShell when the command is a pull, merge,
+  rebase, cherry-pick or stash pop, and on **UserPromptSubmit** so a pull run in the user's own
+  terminal is caught on their next message. Claude reports the conflict, resolves only mechanical
+  ones, asks about the rest, and never commits or pushes without an explicit ok.
+- `build-on-stop.ps1` — **Stop**. Refuses to finish while a conflict is open; otherwise runs
+  `dotnet build` when a `.cs`/`.csproj`/`.json` changed since the last good build, and on errors
+  makes Claude report them, then fix mechanical ones or ask. `stop_hook_active` lets the second
+  pass through, so it never loops; locked DLLs (app running) are reported as unverified, not as
+  errors.
+
+Still to add: `dotnet format whitespace --include <file>` on PostToolUse once the `.editorconfig` +
+format commit lands (finding #20, Week 2 A1), and failing on warnings once the 36 are fixed (A2).
+
+Why errors-only: the 36 existing warnings would fail every turn today, and a baseline comparison
+is throwaway work when A2 removes them this week.
 
 ### Consequences
 
@@ -418,3 +436,7 @@ formatting commit first (finding #20), so the hooks never produce whole-file chu
   for on every task.
 - The formatting baseline commit touches many files once; review it as formatting-only.
 - `NZWalks/.vs/` and `obj/` are tracked noise (CLAUDE.md); hooks must not stage or format them.
+- The hooks only see Claude's actions and the user's messages: a build or pull done entirely in
+  Visual Studio or a terminal is not checked until the next message.
+- They call `powershell`, so they work on Windows only; a Mac/Linux clone gets hook errors.
+- The build stamp lives in `.claude/hooks/.state/` (gitignored).

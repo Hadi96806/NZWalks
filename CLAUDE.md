@@ -22,6 +22,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - When planning any change in this project (including plan mode), use the `task-plan` skill.
 
+## Hooks
+
+`.claude/settings.json` runs PowerShell hooks from `.claude/hooks/` (ADR-0008): a secrets guard blocks edits that look like a password or key; a conflict check runs after a pull and on each user message; a Stop hook builds the solution when source changed. When a hook reports a conflict or build error, say so to the user, fix only mechanical cases, and ask about anything else.
+
 ## Commands
 
 Run all commands from `NZWalks/` (the folder holding the `.sln`).

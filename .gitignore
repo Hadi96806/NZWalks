@@ -31,3 +31,6 @@ Thumbs.db
 
 ## Plans — kept locally and published to Notion, not versioned
 docs/plans/
+
+## Claude Code hook state (build stamp)
+.claude/hooks/.state/
