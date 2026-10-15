@@ -1,0 +1,5 @@
+# Commits that only reformat code; git blame skips them (GitHub reads this file automatically).
+# Locally: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# A1: dotnet format whitespace over the solution (no code changes)
+99defd309cb6ec3dabdb40992ad1fdb7caea4658
