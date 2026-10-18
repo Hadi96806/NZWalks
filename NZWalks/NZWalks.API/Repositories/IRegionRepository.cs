@@ -1,8 +1,8 @@
 ﻿using NZWalks.API.Models.Domain;
 
-namespace NZWalks.API.Respositries
+namespace NZWalks.API.Repositories
 {
-    public interface IRegionRespository
+    public interface IRegionRepository
     {
         Task<List<Region>> GetAllAsync(CancellationToken cancellationToken = default);
         Task<Region?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);

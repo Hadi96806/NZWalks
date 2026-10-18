@@ -3,9 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using NZWalks.API.Data;
 using NZWalks.API.Exceptions;
 using NZWalks.API.Models.Domain;
-using NZWalks.API.Models.Pagination_Result;
+using NZWalks.API.Models.PaginationResult;
 
-namespace NZWalks.API.Respositries
+namespace NZWalks.API.Repositories
 {
     public class SQLWalkRepository : IWalkRepository
     {

@@ -5,8 +5,8 @@ using Microsoft.AspNetCore.Mvc;
 using NZWalks.API.Constants;
 using NZWalks.API.Models.Domain;
 using NZWalks.API.Models.DTO;
-using NZWalks.API.Models.Pagination_Result;
-using NZWalks.API.Respositries;
+using NZWalks.API.Models.PaginationResult;
+using NZWalks.API.Repositories;
 
 namespace NZWalks.API.Controllers
 {

@@ -8,7 +8,7 @@ using NZWalks.API.Constants;
 using NZWalks.API.Data;
 using NZWalks.API.Models.Domain;
 using NZWalks.API.Models.DTO;
-using NZWalks.API.Respositries;
+using NZWalks.API.Repositories;
 using System.Text.Json;
 
 namespace NZWalks.API.Controllers
@@ -19,14 +19,14 @@ namespace NZWalks.API.Controllers
     [ApiVersion(2.0)]
     public class RegionsController : ControllerBase
     {
-        private readonly IRegionRespository regionRepositry;
+        private readonly IRegionRepository regionRepository;
         private readonly IMapper mapper;
 
         public ILogger<RegionsController> Logger { get; }
 
-        public RegionsController(IRegionRespository regionRepositry, IMapper mapper, ILogger<RegionsController> logger)
+        public RegionsController(IRegionRepository regionRepository, IMapper mapper, ILogger<RegionsController> logger)
         {
-            this.regionRepositry = regionRepositry;
+            this.regionRepository = regionRepository;
             this.mapper = mapper;
             Logger = logger;
         }
@@ -38,7 +38,7 @@ namespace NZWalks.API.Controllers
         public async Task<IActionResult> GetAllV1(CancellationToken cancellationToken)
         {
             Logger.LogInformation("GET All Regions Action Invoked");
-            var regions = await regionRepositry.GetAllAsync(cancellationToken);
+            var regions = await regionRepository.GetAllAsync(cancellationToken);
 
             //Map Domina Model To DTO
             var regionsDto = mapper.Map<List<RegionDtoV1>>(regions);
@@ -54,7 +54,7 @@ namespace NZWalks.API.Controllers
         public async Task<IActionResult> GetAllV2(CancellationToken cancellationToken)
         {
             Logger.LogInformation("GET All Regions Action Invoked");
-            var regions = await regionRepositry.GetAllAsync(cancellationToken);
+            var regions = await regionRepository.GetAllAsync(cancellationToken);
 
             //Map Domina Model To DTO
             var regionsDto = mapper.Map<List<RegionDtoV2>>(regions);
@@ -70,7 +70,7 @@ namespace NZWalks.API.Controllers
         public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         {
             //var region = dbContext.Regions.FirstOrDefault(x=>x.Id==id);
-            var region = await regionRepositry.GetByIdAsync(id, cancellationToken);
+            var region = await regionRepository.GetByIdAsync(id, cancellationToken);
             if (region == null)
             {
                 return Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Region with id {id} was not found.");
@@ -86,7 +86,7 @@ namespace NZWalks.API.Controllers
         {
             var regionDomainModal = mapper.Map<Region>(addRegionDto);
 
-            await regionRepositry.CreateAsync(regionDomainModal, cancellationToken);
+            await regionRepository.CreateAsync(regionDomainModal, cancellationToken);
 
             var regionDto = mapper.Map<RegionDtoV1>(regionDomainModal);
 
@@ -101,7 +101,7 @@ namespace NZWalks.API.Controllers
         {
             var updateRegion = mapper.Map<Region>(updateRegionDto);
 
-            var regionDomainModel = await regionRepositry.UpdateAsync(id, updateRegion, cancellationToken);
+            var regionDomainModel = await regionRepository.UpdateAsync(id, updateRegion, cancellationToken);
             if (regionDomainModel == null)
             {
                 return Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Region with id {id} was not found.");
@@ -118,7 +118,7 @@ namespace NZWalks.API.Controllers
         [Authorize(Policy = PolicyNames.CanWrite)]
         public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken cancellationToken)
         {
-            var regionDomainModel = await regionRepositry.DeleteAsync(id, cancellationToken);
+            var regionDomainModel = await regionRepository.DeleteAsync(id, cancellationToken);
             if (regionDomainModel == null)
             {
                 return Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Region with id {id} was not found.");

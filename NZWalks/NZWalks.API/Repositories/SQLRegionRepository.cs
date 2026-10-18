@@ -4,9 +4,9 @@ using NZWalks.API.Exceptions;
 using NZWalks.API.Models.Domain;
 using NZWalks.API.Models.DTO;
 
-namespace NZWalks.API.Respositries
+namespace NZWalks.API.Repositories
 {
-    public class SQLRegionRepository : IRegionRespository
+    public class SQLRegionRepository : IRegionRepository
     {
         public NZWalksDbContext dbContext { get; }
 

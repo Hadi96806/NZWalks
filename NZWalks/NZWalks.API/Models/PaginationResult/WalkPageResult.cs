@@ -1,6 +1,6 @@
 ﻿using NZWalks.API.Models.Domain;
 
-namespace NZWalks.API.Models.Pagination_Result
+namespace NZWalks.API.Models.PaginationResult
 {
     public class WalkPageResult
     {

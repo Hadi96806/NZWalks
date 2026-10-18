@@ -1,7 +1,7 @@
 ﻿using AutoMapper;
 using NZWalks.API.Models.Domain;
 using NZWalks.API.Models.DTO;
-using NZWalks.API.Models.Pagination_Result;
+using NZWalks.API.Models.PaginationResult;
 
 namespace NZWalks.API.Mappings
 {

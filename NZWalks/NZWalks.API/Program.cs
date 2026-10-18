@@ -14,7 +14,7 @@ using NZWalks.API.Constants;
 using NZWalks.API.Data;
 using NZWalks.API.Mappings;
 using NZWalks.API.Middlewares;
-using NZWalks.API.Respositries;
+using NZWalks.API.Repositories;
 using Serilog;
 using System.Diagnostics;
 using System.Globalization;
@@ -126,7 +126,7 @@ options.UseSqlServer(builder.Configuration.GetConnectionString("NZWalksConnectio
 builder.Services.AddDbContext<NZWalksAuthDbContext>(options =>
 options.UseSqlServer(builder.Configuration.GetConnectionString("NZWalksAuthConnectionString")));
 
-builder.Services.AddScoped<IRegionRespository, SQLRegionRepository>();
+builder.Services.AddScoped<IRegionRepository, SQLRegionRepository>();
 builder.Services.AddScoped<IWalkRepository, SQLWalkRepository>();
 builder.Services.AddScoped<ITokenRepository, TokenRepository>();
 builder.Services.AddScoped<IImageRepository, LocalImageRepository>();

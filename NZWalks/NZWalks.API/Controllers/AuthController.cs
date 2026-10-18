@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using NZWalks.API.Constants;
 using NZWalks.API.Models.DTO;
-using NZWalks.API.Respositries;
+using NZWalks.API.Repositories;
 
 namespace NZWalks.API.Controllers
 {
