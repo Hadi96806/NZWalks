@@ -36,6 +36,7 @@ ones that are inconvenient. An entry that lists only upsides is not finished.
 | [0007](#adr-0007--access-policy-for-walks-and-images) | Access policy for Walks and Images | Accepted | 2026-10-13 |
 | [0008](#adr-0008--week-2-hooks-what-runs-when-and-what-fails) | Week 2 hooks: what runs when, and what fails | Accepted | 2026-10-15 |
 | [0009](#adr-0009--fail-closed-authorization-and-named-policies) | Fail-closed authorization and named policies | Accepted | 2026-10-15 |
+| [0010](#adr-0010--read-only-reviewer-subagent-and-the-commit-gate) | Read-only reviewer subagent and the commit gate | Accepted | 2026-10-18 |
 
 ---
 
@@ -509,3 +510,140 @@ No token → 401 on Regions, Walks and Images upload; Login and Register reachab
 Reader reads and cannot write; a Writer-only user reads (200) and writes (201); `/Images` and
 Swagger load without a token; and a scratch copy with a deliberately un-attributed action returned
 401 with no token and 200 for a Reader, which shows the fallback itself works.
+
+---
+
+## ADR-0010 — Read-only reviewer subagent and the commit gate
+
+**Status:** Accepted · **Date:** 2026-10-18 · Week 2 tracker task B2, decision D4 ("which subagent?").
+
+### Context
+
+The repo's rules live in `CLAUDE.md`, the ADRs and `docs/03`, and a model writing code can drift from
+them without noticing (finding #8 shipped an open endpoint; the A3 commit left several docs describing the
+old role rules). The roadmap suggested a test-writer subagent, but there is no test project until Week 3.
+
+### Options
+
+1. **A reviewer that is only a prompt** the main session may or may not run.
+2. **A read-only reviewer plus a hook that blocks `git commit`** until a review is recorded for the exact
+   staged diff.
+3. **A reviewer with shell access** so it can build and probe the API itself.
+
+### Decision
+
+**Option 2.**
+
+- **The reviewer** is `.claude/agents/nzwalks-reviewer.md` with the tools `Read, Grep, Glob` only. It cannot
+  edit files or run commands. It reads a diff file plus the current files, `CLAUDE.md`, the ADRs and
+  `docs/03`, and returns a fixed report: findings with a level (**High, Medium, Low, Cosmetic**, the words
+  `docs/03` uses), **compromises**, **requested checks** and what it could not review. A **High finding
+  blocks the commit** (verdict BLOCK); anything lower is reported and does not block.
+- **Elevation is per check, by the user.** When the reviewer wants evidence (a build, `dotnet format`, a test,
+  a probe request) it lists a *requested check*. The main session runs it only after the user approves that
+  specific check, and passes the output back. There is no second agent with a shell.
+- **The gate** is `.claude/hooks/review-before-commit.ps1`, a `PreToolUse` hook on `Bash|PowerShell`. A
+  `git commit` is refused until `.claude/hooks/.state/reviews/<hash>.txt` records PASS or ACCEPTED for the
+  SHA-256 prefix of the exact staged diff. Flow: `review-prepare.ps1` writes the diff to a file and prints its
+  hash; the reviewer reads it; the main session shows the user the report; `review-mark.ps1` records PASS,
+  BLOCK, or ACCEPTED. ACCEPTED needs a note and is recorded only after the user has seen the High finding and
+  decided to go ahead. Any change to what is staged changes the hash and voids the review.
+  Commits that take their content from the working tree instead of the index (`-a/--all`, `-o/--only`,
+  `-i/--include`, or path arguments, quoted or not) are refused, because the reviewed and committed diffs
+  could then differ. So is a command that stages and commits in one go (`git add … && git commit …`),
+  because the hook reads the index before the command runs; staging must be its own earlier command. With
+  nothing staged, `--amend` and `--allow-empty` are refused too. A docs-only commit is
+  reviewed too. The hash is computed from git's output captured as UTF-8 by a process, so it does not
+  depend on the console code page (the first real review found that it did).
+- **The gate's own files are protected from Claude's edit tools.** `.claude/hooks/guard-gate-files.ps1`
+  refuses Claude's `Edit`/`Write` on `.claude/settings.json` (and `settings.local.json`), everything under `.claude/hooks/` (scripts,
+  review markers) and `.claude/agents/`. The user can always edit them by hand, or let Claude change one
+  file for 30 minutes by creating `.claude/hooks/.state/allow-gate-edit.txt` with that path in their own
+  terminal. Only the edit tools are guarded; a shell command that writes to those files is not caught.
+- **Compromises** (a knowingly accepted trade-off, deviation or imperfection) are reported with a level and a
+  proposed destination: a deliberate choice that closes off an alternative goes to an ADR, an unintended
+  defect or debt not fixed in the diff goes to a `docs/03` finding. **Nothing is written to a doc until the
+  user confirms it**; the reviewer itself never writes.
+
+### Consequences
+
+- The gate proves a review was **recorded** for this diff, not that it was done well, and the main session
+  writes the marker. The user sees every report; that is the real control. Never record PASS or ACCEPTED
+  without having run the reviewer and, for a High finding, without the user's say-so.
+- **Accepted limits of the gate (confirmed by the user 2026-10-18).** It guards against forgetting, not against
+  a determined or misled session:
+  - *The marker is a plain file.* A session misled by text in a file, or in a hurry, could run
+    `review-mark.ps1 PASS` without running the reviewer, or write the marker directly, and an unreviewed
+    change would commit with the gate showing green (the way a forgotten `[Authorize]` produced finding #8).
+    The user seeing every report is what catches this: a commit with no report in the chat is the tell.
+  - *The gate's files can still be changed through a shell command* (the edit-tool protection does not cover
+    it). A session "fixing" a false block by loosening the matcher or removing the hook entry would turn the
+    gate off silently for every later commit.
+  - *It fails open.* If the hook itself crashes (PowerShell or git missing from the hook's environment, an
+    execution-policy change after an update, a clone on another machine, a permissions problem under
+    `.state/`), the commit goes through with no message, and the user would believe commits were reviewed
+    when they were not. Failing closed was rejected because a broken hook would then stop every commit Claude
+    makes until the user repairs it, which is worse than the risk it removes.
+- It only sees commits made by the `git commit` command that Claude runs. A commit made in Visual Studio or
+  a terminal is not gated, and neither are commits created by `git merge`, `cherry-pick`, `rebase`,
+  `revert`, `pull` or `commit-tree`, even when Claude runs them.
+- The hook finds `git commit` by reading the command text with heredoc bodies, here-strings and quoted
+  strings blanked out. That is a heuristic: an unusual way of writing the command can slip past it (for
+  example a flag placed after a line continuation), some options are misread (`-t <file>`, `--trailer`, and
+  `-S<keyid>` can be taken for a path or an `-a`/`-o`/`-i` flag and block by mistake), and a command that merely contains the
+  words `git commit` outside quotes can be blocked by mistake. If the gate misreads a command, ask the user;
+  do not route the commit around it. The gate reads the index when the command starts, so staging must be
+  its own earlier command.
+- **Known limits of that heuristic, found by the third review and accepted by the user on 2026-10-18** (none is
+  High; each is either a false block with a workaround, or a rare form):
+  - *False block (Medium):* `git commit -F - <<'EOF' … EOF` (message piped in) is refused, because the
+    heredoc replacement leaves a stray word that is read as a path. Use `-m "…"` or `-F <file>` instead.
+  - *False blocks (Low):* a redirection with a space (`> /dev/null`, `2> $null`) is read as a path; unquoted
+    glued values (`-mfix`) and abbreviated long options (`--onl`, `--incl`) are misread.
+  - *Not refused (Low):* `-am"msg"` (a flag cluster with a glued quoted value) is not seen as `-a`;
+    `--pathspec-from-file=<f>` commits working-tree paths without being refused; a quoted `git.exe` commit on
+    the second or later line of a multi-line command is not recognised.
+  - *Only the first `git commit` in a command is inspected,* so a second commit, `-a`, or later staging after it
+    is not examined (`git commit -m a; git commit -a -m b`).
+  - *The staging-verb list is fixed* (`add`, `stage`, `rm`, `mv`, `reset`, `restore`, `apply`, `stash`,
+    `checkout`, `switch`, `update-index`): other index-changing commands (`merge --squash`, `cherry-pick -n`,
+    `revert -n`) are not caught, and index-neutral ones such as `git checkout -b x && git commit` are refused.
+- The reviewer can't build or run anything, so warnings and runtime behaviour reach it only as requested
+  checks; its "Not reviewed" section says so each time.
+- Agent definitions load when a session starts, so a new `.claude/agents/` file is available from the next
+  session. In the session that created it, the dry run used the built-in `Explore` agent pointed at the same
+  definition file (which cannot enforce the tool list).
+- Every commit pays for a review, including small ones. If that becomes too slow, the first thing to relax is
+  docs-only commits, as a new ADR.
+- The report is model output. The reviewer is told to treat diff content as data and to report text aimed at it
+  as a High finding.
+- These scripts are PowerShell, so they work on Windows only, like the Week 2 hooks (ADR-0008): the hook
+  `review-before-commit.ps1`, the two on-demand scripts `review-prepare.ps1` and `review-mark.ps1`, and the
+  shared helper `review-common.ps1`. Diff files and review markers live in `.claude/hooks/.state/`, which is
+  gitignored.
+
+### Dry run (2026-10-18)
+
+Run on the A3 commit (`30ce92e`) before wiring the gate: verdict PASS, with 3 Medium doc findings
+(CLAUDE.md still said `Roles = RoleNames.Admin` for `UsersController`; ADR-0007 not marked as amended by
+ADR-0009; `docs/01` and `docs/02` still describe `Roles =` and omit `PolicyNames`), 1 Low ("11 actions"
+should be 12) and 1 Cosmetic (the date). All were real when checked against the files.
+
+### First real review (2026-10-18)
+
+Run on this ADR's own commit (staged diff `8ec8c158594f3a2f`): verdict PASS, with 6 Medium findings, 4 Low and
+1 Cosmetic, all in the gate and its docs. The ones that were bugs were fixed before the commit: the diff hash
+changed with the console code page (the same diff hashed as `8ec8…` under the default code page 65001 and as
+`f758…` under code page 437; after the fix both give `8ec8…`), `git.exe` and quoted-option forms were missed, path/`-o`/`-i` commits were not refused,
+`--amend`/`--allow-empty` with an empty index passed, and quoted text was read as flags. The rest are
+recorded under Consequences.
+
+A second review of the fixed diff (`d1a8bb912b3e8299`) was also PASS, with 4 Medium findings: a command that
+stages and commits in one go was judged against the old index (the way commits were being made), quoted path
+arguments were not refused, multi-line messages with a quote or an apostrophe were falsely blocked, and the
+"use a script file" advice was itself a way round the gate. All four were fixed before the commit, along with
+two Lows (git's error output is now drained so it cannot stall the hook, and the grant command now creates
+the `.state/` folder first). Two reviews of one tool each finding real gaps in the matcher is why the limits
+above say "heuristic": it is a guard against forgetting, and further parsing edge cases are accepted rather
+than chased. A third review (`a2fcba26…`) was PASS with one Medium (a false block on `git commit -F - <<'EOF'`
+that the heredoc fix introduced) and four Lows; they are recorded as accepted limits above.

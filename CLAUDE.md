@@ -22,9 +22,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - When planning any change in this project (including plan mode), use the `task-plan` skill.
 
+## Review before every commit
+
+- A hook (`.claude/hooks/review-before-commit.ps1`, ADR-0010) blocks `git commit` until the read-only `nzwalks-reviewer` subagent has reviewed the **exact staged diff**. Stage files by name (`git add <files>`); commits that look at the working tree instead of the index (`-a`, `-o`, `-i`, or path arguments) are refused. Run `git add` in its own command before `git commit`: the gate reads the index when the command starts, so a command that stages and commits in one go (`git add … && git commit …`) is refused. If the gate misreads a commit command (it reads the command text, so odd quoting can confuse it), ask the user; never route the commit around the gate.
+- Flow (each script runs as `powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/<name>.ps1`): `review-prepare.ps1` (writes the diff, prints a hash) → run the reviewer with the diff file path and hash → show the user the report → `review-mark.ps1 -Hash <hash> -Verdict PASS|BLOCK|ACCEPTED`, with `-Note "<what the user decided>"` for ACCEPTED. Never record PASS or ACCEPTED without having run the reviewer, and record ACCEPTED only after the user has seen the High finding and said to go ahead.
+- Levels are High / Medium / Low / Cosmetic. A **High** finding blocks the commit. **Compromises** the reviewer reports are confirmed with the user first; only then record them: a deliberate choice in `docs/decisions.md` (ADR), an unintended defect or debt in `docs/03`.
+- Claude's edit tools cannot change the gate's own files (`.claude/settings.json` and `settings.local.json`, `.claude/hooks/`, `.claude/agents/`): `guard-gate-files.ps1` refuses. If a change there is needed, tell the user what and why; they edit it by hand or grant that one file for 30 minutes (`New-Item -ItemType Directory -Force .claude/hooks/.state | Out-Null; Set-Content .claude/hooks/.state/allow-gate-edit.txt "<path>"` in their own terminal, from the repo root). Never work around it with a shell command.
+- The reviewer is read-only. Anything it asks to have run (build, format check, a request) is a "requested check": run it only after the user approves that specific check.
+
 ## Hooks
 
-`.claude/settings.json` runs PowerShell hooks from `.claude/hooks/` (ADR-0008): a secrets guard blocks edits that look like a password or key; a conflict check runs after a pull and on each user message; a Stop hook builds the solution when source changed. When a hook reports a conflict or build error, say so to the user, fix only mechanical cases, and ask about anything else.
+`.claude/settings.json` runs PowerShell hooks from `.claude/hooks/` (ADR-0008): a secrets guard blocks edits that look like a password or key; a conflict check runs after a pull and on each user message; a Stop hook builds the solution when source changed; a format hook runs `dotnet format` on each `.cs` file Claude edits; and the commit gate (see "Review before every commit", ADR-0010) blocks `git commit` until the reviewer has run. When a hook reports a conflict or build error, say so to the user, fix only mechanical cases, and ask about anything else.
 
 ## Commands
 
