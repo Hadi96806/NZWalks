@@ -187,7 +187,7 @@ Option 3 is not viable — it leaves live credentials exposed for five more week
 
 ## ADR-0004 — Roles are granted only by an Admin
 
-**Status:** Accepted · **Date:** 2026-10-08
+**Status:** Accepted · **Date:** 2026-10-08 · **Amended by [ADR-0009](#adr-0009--fail-closed-authorization-and-named-policies):** `UsersController` is now guarded by the named policy `CanAdmin` (`[Authorize(Policy = PolicyNames.CanAdmin)]`) instead of `Roles = Admin`; the Admin-only rule itself is unchanged.
 
 ### Context
 
@@ -460,7 +460,7 @@ baseline is now empty**, so every warning fails the Stop hook. Re-run
 Authorization was opt-in: an action with no `[Authorize]` was anonymous, and finding #8 (Walks and
 Images open to the world) happened only because someone forgot the attribute. ADR-0007 closed that
 hole by adding attributes, and explicitly left the structural fix open. The role rules were also
-repeated as strings on 12 actions (Regions used the literals `"Reader,Admin"` and `"Writer,Admin"`),
+repeated as strings on 12 actions of Regions, Walks and Images, plus `UsersController` at class level (Regions used the literals `"Reader,Admin"` and `"Writer,Admin"`),
 so a typo silently locked everyone out of one action, and changing who may read meant editing every
 read action.
 

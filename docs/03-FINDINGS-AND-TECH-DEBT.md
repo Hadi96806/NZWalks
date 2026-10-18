@@ -135,7 +135,7 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 **Files:** every controller; `NZWalks.API/Program.cs` (no `AddAuthorization` policies, no `FallbackPolicy`)
 **Current behavior:**
 - Authorization is opt-in: an action with no `[Authorize]` is anonymous. Finding #8 existed only because someone forgot the attribute.
-- The role split is written as attribute strings on 12 actions across three controllers. Walks, Images and Users use `RoleNames` constants; `RegionsController` still uses the literals `"Reader,Admin"` / `"Writer,Admin"`.
+- The role split is written as attribute strings on 12 actions across Regions, Walks and Images (plus `UsersController`, guarded once at class level). Walks, Images and Users use `RoleNames` constants; `RegionsController` still uses the literals `"Reader,Admin"` / `"Writer,Admin"`.
 - Reads require `Reader` or `Admin`, so a user holding only `Writer` can change walks and regions but not read them. Rare today (Register always grants `Reader`, and RevokeRole refuses to remove a user's last role) but possible if an Admin revokes `Reader` from a Writer.
 **Why it matters:** the next controller ships open unless its author remembers; a typo in a literal role string silently locks everyone out of that action; changing who may read means editing every read action.
 **Suggested direction:** set `FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build()` so endpoints fail closed, with `[AllowAnonymous]` on Register and Login. Define named policies (`CanRead` = Reader/Writer/Admin, `CanWrite` = Writer/Admin) in `AddAuthorization` and use `[Authorize(Policy = …)]`. Switch `RegionsController` to the constants or the policies.

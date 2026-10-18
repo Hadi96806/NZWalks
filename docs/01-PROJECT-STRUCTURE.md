@@ -102,9 +102,9 @@ There is no `wwwroot/` folder — static image serving is configured explicitly 
 
 | Controller | Route(s) | Actions | Injected dependencies |
 |---|---|---|---|
-| `AuthController` | `api/Auth` (anonymous; class-level `[EnableRateLimiting(RateLimitPolicies.Auth)]`, 5 req/min per IP) | `POST /Register`, `POST /Login` (lockout-aware) | `UserManager<IdentityUser>`, `SignInManager<IdentityUser>`, `ITokenRepository`, `ILogger<AuthController>` |
+| `AuthController` | `api/Auth` (only the `Register` and `Login` actions are `[AllowAnonymous]`; class-level `[EnableRateLimiting(RateLimitPolicies.Auth)]`, 5 req/min per IP) | `POST /Register`, `POST /Login` (lockout-aware) | `UserManager<IdentityUser>`, `SignInManager<IdentityUser>`, `ITokenRepository`, `ILogger<AuthController>` |
 | `UsersController` | `api/Users` (class-level `[Authorize(Policy = PolicyNames.CanAdmin)]`) | `POST /GrantRole`, `POST /RevokeRole` | `UserManager<IdentityUser>`, `ILogger<UsersController>` |
-| `ImagesController` | `api/Images` (`Upload`: Writer/Admin) | `POST /Upload` | `IImageRepository` |
+| `ImagesController` | `api/Images` (`Upload`: `CanWrite`) | `POST /Upload` | `IImageRepository` |
 | `RegionsController` | `api/v{version}/Regions` (v1.0, v2.0; reads `CanRead`, writes `CanWrite`) | `GetAllV1`, `GetAllV2`, `GetById`, `Create`, `Update`, `Delete` | `IRegionRespository`, `IMapper`, `ILogger<RegionsController>` |
 | `WalksController` | `api/Walks` (reads `CanRead`, writes `CanWrite` — ADR-0007, ADR-0009) | `GetAll` (filter + sort + pagination), `GetById`, `Create`, `Update`, `Delete` | `IMapper`, `IWalkRepository` |
 

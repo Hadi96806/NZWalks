@@ -14,7 +14,11 @@ Short definitions of terms used across this documentation set, for anyone readin
 
 - **Claim:** a single piece of information embedded in a JWT (e.g. the user's email, or a role like "Admin"). `HttpContext.User` is populated with claims once a token is validated by the Authentication middleware.
 
-- **Role-based authorization:** restricting an endpoint to users whose token contains a specific role claim, via `[Authorize(Roles = "...")]`. Different from *authentication*, which only confirms *who* the caller is, not what they're allowed to do.
+- **Role-based authorization:** restricting an endpoint to users whose token contains a specific role claim. In this project the roles are grouped into named policies (`CanRead`, `CanWrite`, `CanAdmin`) and an action says `[Authorize(Policy = PolicyNames.CanWrite)]`. Different from *authentication*, which only confirms *who* the caller is, not what they're allowed to do.
+
+- **Policy (authorization policy):** a named rule registered in `AddAuthorization`, such as `CanWrite` = "has the Writer or Admin role". Attributes refer to it by name, so the rule lives in one place (`Program.cs`) and the name comes from a constant in `Constants/PolicyNames.cs`.
+
+- **Fallback policy:** the policy applied to an endpoint that has no authorization attribute at all. Here it requires a logged-in user, so a forgotten attribute means 401, not an open endpoint (ADR-0009). `[AllowAnonymous]` opts an action out; only `Register` and `Login` do.
 
 - **EF Core Migration:** a generated C# file describing a change to the database schema (e.g. "add an Images table"), plus a snapshot of what the full schema looks like after applying it. Running `dotnet ef database update` applies any migrations not yet applied to the target database.
 
