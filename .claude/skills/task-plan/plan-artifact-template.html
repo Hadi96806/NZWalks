@@ -139,9 +139,10 @@ function render(){
       <div class="impl" id="impl-${n}">
         <div>Starts a new Claude Code session in <code>NZWalks</code>, under the NZWalks group.</div>
         <div class="row">
-          <a class="btn primary" href="${appUrl(n)}">Start implement session</a>
-          <button class="btn" type="button" data-copy="${n}">Copy command</button>
+          <button class="btn primary" type="button" data-copy="${n}">Copy command</button>
+          <a class="btn" href="${appUrl(n)}" target="_blank" rel="noopener">Try opening the app</a>
         </div>
+        <div>Paste the copied command into a new Claude Code session. The sandbox around this page may block the app link; if it does, the page itself stays put.</div>
         <pre id="cmd-${n}">${slashCmd(n)}</pre>
       </div>
     </article>`).join("");
