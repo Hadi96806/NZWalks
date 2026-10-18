@@ -128,7 +128,7 @@ Option 3 was rejected as a non-answer: deferring the decision is what leaves Wee
   that stays a convention, enforced by review.
 - Test projects reference the web assembly, so test startup carries the hosting stack.
 - The split stays available later, and gets no harder for having waited — unlike the
-  `Respositries` rename (finding #5), which does.
+  `Respositries` rename (finding #5), which does (done in Week 2 B3, 2026-10-18).
 - Acting on this needs one line in `Program.cs`: `public partial class Program { }`. Top-level
   statements generate an `internal` `Program`, which a test assembly cannot name as the generic
   argument to `WebApplicationFactory<Program>`. Without it the decision is unimplementable, and

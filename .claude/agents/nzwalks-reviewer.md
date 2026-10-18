@@ -45,7 +45,7 @@ Review only what the diff changes or newly relies on. Name the rule behind every
 6. **Rate limiting and lockout (ADR-0006).** A new endpoint that takes credentials sits under the `Auth`
    policy; generic 401 messages never reveal lockout or which credential failed.
 7. **Layering.** Controllers never touch a DbContext; they map DTO to domain and call a repository from the
-   `Respositries` folder and namespace (the misspelling is intentional until task B3). A new DTO has an
+   `Repositories` folder and namespace (`NZWalks.API.Repositories`). A new DTO has an
    `AutoMapperProfiles` entry.
 8. **Warnings and nullability (ADR-0008).** The build is expected to have 0 warnings. A new `= null!` or `!`
    needs a comment saying what guarantees the value. You cannot build: if the diff could add a warning, list

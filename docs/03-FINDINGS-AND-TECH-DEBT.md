@@ -66,20 +66,22 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 
 ### 11. `Jwt:ExpiryMinutes` is configured but never read — **RESOLVED 2026-10-08**
 **Resolution:** `TokenRepository` now reads `Jwt:ExpiryMinutes` (set to 15) and uses `DateTime.UtcNow`; `Program.cs` refuses to start when the value is missing or not positive; `ClockSkew` is zero. See [ADR-0005](./decisions.md#adr-0005--token-lifetime-and-clock-skew). The text below describes the state when the finding was written.
-**Files:** `NZWalks.API/appsettings.json`, `NZWalks.API/Respositries/TokenRepository.cs`, `NZWalks.API/Program.cs`
+**Files:** `NZWalks.API/appsettings.json`, `NZWalks.API/Repositories/TokenRepository.cs`, `NZWalks.API/Program.cs`
 **Current behavior:** `appsettings.json` defines a `Jwt:ExpiryMinutes` key, but neither `Program.cs` nor `TokenRepository` reads it — token expiry is therefore either hardcoded elsewhere or not being set from configuration at all.
 **Why it matters:** dead configuration is misleading — anyone tuning token lifetime by editing `appsettings.json` will see no effect and won't know why.
 **Suggested direction:** either wire `Jwt:ExpiryMinutes` into the token's `expires` claim in `TokenRepository.CreateToken`, or remove the unused key.
 
 ## Naming / Consistency
 
-### 5. Repository layer is misspelled throughout: `Respositries`, `IRegionRespository`
+### 5. Repository layer is misspelled throughout: `Respositries`, `IRegionRespository` — **RESOLVED 2026-10-18**
+**Resolution:** the folder and namespace are now `Repositories` / `NZWalks.API.Repositories` and the interface is `IRegionRepository` (file renamed too). The same typo class in `RegionsController`, the field and constructor parameter `regionRepositry`, is now `regionRepository`; it was not in the original finding. Done with `git mv` so history follows the files (Week 2 B3, commit `039a75d`); no migration was needed, and Swagger v1 and v2 are byte-identical before and after. The text below describes the state when the finding was written.
 **Files:** `NZWalks.API/Respositries/` (folder), `IRegionRespository.cs`, all references to `IRegionRespository`
 **Current behavior:** the folder name and one interface name are consistently misspelled across the codebase (not just a one-off typo — it's the actual, referenced identifier).
 **Why it matters:** harmless functionally, but it's the kind of thing that gets *harder* to fix the more code references it (every `using NZWalks.API.Respositries;` and every `IRegionRespository` usage). Doing it now, while the surface area is small, is far cheaper than doing it after the project has grown.
 **Suggested direction:** a rename pass (folder, namespace, interface name) while the codebase is still small — this is exactly the kind of change that should happen *before* scaling, not after.
 
-### 6. `Models/Pagination Result/` has a literal space in the folder path
+### 6. `Models/Pagination Result/` has a literal space in the folder path — **RESOLVED 2026-10-18**
+**Resolution:** the folder is now `Models/PaginationResult/` and its namespace is `NZWalks.API.Models.PaginationResult`, so folder and namespace match and the underscore namespace is gone (Week 2 B3, commit `039a75d`). The text below describes the state when the finding was written.
 **Files:** `NZWalks.API/Models/Pagination Result/` (folder), namespace `Pagination_Result`
 **Current behavior:** the folder name contains a literal space, while the C# namespace uses an underscore (`Pagination_Result`) — the two don't match, which is a mismatch some tooling (and some CI/build systems, particularly on non-Windows runners or shell scripts that split on whitespace) can trip over.
 **Why it matters:** works today on this machine, but is fragile — a script `find`-ing or globbing paths without proper quoting will break on this folder.
@@ -91,10 +93,10 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 **Files:** whole solution — `NZWalks.sln` only references `NZWalks.API.csproj`
 **Current behavior:** controllers, DbContexts, repositories, DTOs, and mapping profiles are all compiled into a single assembly.
 **Why it matters:** this is fine at the current size, but it will start to hurt once: (a) you want to unit-test repository/domain logic without pulling in ASP.NET Core hosting; (b) another host (a background worker, a console tool, a second API) wants to reuse the domain/data layer; (c) you want to enforce that, say, controllers can never directly reference `NZWalksDbContext` — a compiler-enforced boundary that only a separate project can give you.
-**Suggested direction:** when the time comes, extract `Models/Domain`, `Data/`, and `Respositries/` into a `NZWalks.Data` (or similarly named) class library that `NZWalks.API` references. This is a bigger, deliberate step — not a quick fix — and is exactly the kind of change this documentation set exists to set up for.
+**Suggested direction:** when the time comes, extract `Models/Domain`, `Data/`, and `Repositories/` into a `NZWalks.Data` (or similarly named) class library that `NZWalks.API` references. This is a bigger, deliberate step — not a quick fix — and is exactly the kind of change this documentation set exists to set up for.
 
 ### 10. Uploaded images are stored on local disk, tied to a single instance
-**Files:** `NZWalks.API/Respositries/LocalImageRepository.cs`, `Program.cs` (`StaticFileOptions` pointed at `ContentRoot/Images`)
+**Files:** `NZWalks.API/Repositories/LocalImageRepository.cs`, `Program.cs` (`StaticFileOptions` pointed at `ContentRoot/Images`)
 **Current behavior:** `LocalImageRepository` writes uploaded files to `{ContentRoot}/Images` on the machine running the app, and files are served back out via a `PhysicalFileProvider` pointed at that same local folder.
 **Why it matters:** this works for a single instance on a single machine. It does not survive: horizontal scaling (a second instance won't see files uploaded to the first), container redeploys (an ephemeral container filesystem loses all uploaded images on restart), or most cloud hosting models (App Service/containers typically don't guarantee persistent local disk).
 **Suggested direction:** when scaling beyond a single instance, replace `LocalImageRepository` with an implementation backed by shared/durable storage (e.g. Azure Blob Storage, S3-compatible storage) behind the same `IImageRepository` interface — this is precisely the kind of swap the repository pattern (see [01-PROJECT-STRUCTURE.md](./01-PROJECT-STRUCTURE.md), section 5) is designed to make painless.
@@ -141,7 +143,7 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 **Suggested direction:** set `FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build()` so endpoints fail closed, with `[AllowAnonymous]` on Register and Login. Define named policies (`CanRead` = Reader/Writer/Admin, `CanWrite` = Writer/Admin) in `AddAuthorization` and use `[Authorize(Policy = …)]`. Switch `RegionsController` to the constants or the policies.
 
 ### 19. Image upload accepts SVG and stores files under the client's name — **OPEN**
-**Files:** `NZWalks.API/Validators/ImageUploadDtoValidator.cs`, `NZWalks.API/Respositries/LocalImageRepository.cs`, `NZWalks.API/Program.cs` (`UseStaticFiles` for `/Images`)
+**Files:** `NZWalks.API/Validators/ImageUploadDtoValidator.cs`, `NZWalks.API/Repositories/LocalImageRepository.cs`, `NZWalks.API/Program.cs` (`UseStaticFiles` for `/Images`)
 **Current behavior:** `.svg` is an allowed extension, and uploads are served back publicly from `/Images` with no `Content-Security-Policy` or `X-Content-Type-Options` header. Files are saved as `{Name}{extension}` from the request.
 **Why it matters:** an SVG can carry script; opened directly from `/Images` it runs on the API's origin (stored XSS). Upload is now Writer-only (#8), which narrows who can plant one, but doesn't remove the risk. Two uploads with the same `Name` overwrite each other, and predictable names let anyone enumerate files.
 **Suggested direction:** drop `.svg` (or sanitise it), serve `/Images` with `Content-Security-Policy: default-src 'none'` and `X-Content-Type-Options: nosniff`, and store files under a generated id (`{Guid}{ext}`) with the display name kept only in the database. Do it together with the Blob Storage move (#10), since both change how files are named and served.
@@ -170,13 +172,13 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 | 2 | Bug | Low — **resolved** | `Middlewares/ExceptionHandlerMiddleware.cs` |
 | 3 | Bug | Cosmetic — **resolved** | `Middlewares/ExceptionHandlerMiddleware.cs` |
 | 4 | Security/Config | Medium (blocking, once a frontend exists) | `Program.cs` |
-| 5 | Naming | Low (grows costlier over time) | `Respositries/` |
-| 6 | Naming | Low | `Models/Pagination Result/` |
+| 5 | Naming | Low — **resolved 2026-10-18** | `Repositories/` |
+| 6 | Naming | Low — **resolved 2026-10-18** | `Models/PaginationResult/` |
 | 7 | Structural | High (design decision, not a quick fix) | whole solution |
 | 8 | Security | High — **resolved 2026-10-13** | `WalksController.cs`, `ImagesController.cs` |
 | 9 | Bug | Medium — **resolved 2026-10-08** | `Controllers/AuthController.cs` |
-| 10 | Structural | High (only matters once scaling horizontally) | `Respositries/LocalImageRepository.cs` |
-| 11 | Config | Low — **resolved 2026-10-08** | `appsettings.json`, `Respositries/TokenRepository.cs` |
+| 10 | Structural | High (only matters once scaling horizontally) | `Repositories/LocalImageRepository.cs` |
+| 11 | Config | Low — **resolved 2026-10-08** | `appsettings.json`, `Repositories/TokenRepository.cs` |
 | 12 | Bug | Medium — **resolved 2026-10-11** | `Controllers/RegionsController.cs` |
 | 13 | Bug | Medium — **resolved 2026-10-11** | `WalksController.cs`, `ImagesController.cs`, `ExceptionHandlerMiddleware.cs` |
 | 14 | Security/Config | High (blocks the Week 4 deploy) | `Program.cs` |
@@ -184,6 +186,6 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 | 16 | Structural | Medium (only matters once scaled out) | `Program.cs` |
 | 17 | Security/Config | Low | `Program.cs`, `Controllers/AuthController.cs` |
 | 18 | Security | Medium — **resolved 2026-10-15** | all controllers, `Program.cs` |
-| 19 | Security | Medium | `Validators/ImageUploadDtoValidator.cs`, `Respositries/LocalImageRepository.cs`, `Program.cs` |
+| 19 | Security | Medium | `Validators/ImageUploadDtoValidator.cs`, `Repositories/LocalImageRepository.cs`, `Program.cs` |
 | 20 | Tooling | Medium — **resolved 2026-10-15** (style baseline A1, 0 warnings A2) | repo root, `Models/DTO/*` |
 | 21 | Security | Low | `Controllers/AuthController.cs`, `Program.cs` |

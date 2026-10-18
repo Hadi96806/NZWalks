@@ -76,16 +76,16 @@ NZWalks.API/
 │   │   ├── RegisterRequestDto.cs   # email + password only; a "roles" member is rejected (400)
 │   │   ├── UserRoleRequestDto.cs   # { email, role } body for GrantRole / RevokeRole
 │   │   └── WalkQueryDto.cs         # GET /api/Walks filter, sort and paging query parameters
-│   └── Pagination Result/          # Paging wrappers (namespace: Pagination_Result — see findings doc)
+│   └── PaginationResult/           # Paging wrappers (namespace: NZWalks.API.Models.PaginationResult)
 │       ├── WalkPageResult.cs       # wraps domain Walk list + paging metadata
 │       └── WalkPageDtoResult.cs    # wraps WalkDto list + paging metadata
 │
 ├── Properties/
 │   └── launchSettings.json
 │
-├── Respositries/                   # Repository pattern — sits between controllers and DbContexts
+├── Repositories/                   # Repository pattern — sits between controllers and DbContexts
 │   ├── IImageRepository.cs         → LocalImageRepository.cs
-│   ├── IRegionRespository.cs       → SQLRegionRepository.cs
+│   ├── IRegionRepository.cs        → SQLRegionRepository.cs
 │   ├── ITokenRepository.cs         → TokenRepository.cs
 │   └── IWalkRepository.cs          → SQLWalkRepository.cs
 │
@@ -105,7 +105,7 @@ There is no `wwwroot/` folder — static image serving is configured explicitly 
 | `AuthController` | `api/Auth` (only the `Register` and `Login` actions are `[AllowAnonymous]`; class-level `[EnableRateLimiting(RateLimitPolicies.Auth)]`, 5 req/min per IP) | `POST /Register`, `POST /Login` (lockout-aware) | `UserManager<IdentityUser>`, `SignInManager<IdentityUser>`, `ITokenRepository`, `ILogger<AuthController>` |
 | `UsersController` | `api/Users` (class-level `[Authorize(Policy = PolicyNames.CanAdmin)]`) | `POST /GrantRole`, `POST /RevokeRole` | `UserManager<IdentityUser>`, `ILogger<UsersController>` |
 | `ImagesController` | `api/Images` (`Upload`: `CanWrite`) | `POST /Upload` | `IImageRepository` |
-| `RegionsController` | `api/v{version}/Regions` (v1.0, v2.0; reads `CanRead`, writes `CanWrite`) | `GetAllV1`, `GetAllV2`, `GetById`, `Create`, `Update`, `Delete` | `IRegionRespository`, `IMapper`, `ILogger<RegionsController>` |
+| `RegionsController` | `api/v{version}/Regions` (v1.0, v2.0; reads `CanRead`, writes `CanWrite`) | `GetAllV1`, `GetAllV2`, `GetById`, `Create`, `Update`, `Delete` | `IRegionRepository`, `IMapper`, `ILogger<RegionsController>` |
 | `WalksController` | `api/Walks` (reads `CanRead`, writes `CanWrite` — ADR-0007, ADR-0009) | `GetAll` (filter + sort + pagination), `GetById`, `Create`, `Update`, `Delete` | `IMapper`, `IWalkRepository` |
 
 Controllers are deliberately thin: their request DTOs are validated before the action runs (a FluentValidation validator in `Validators/`, wired by `AddFluentValidationAutoValidation()`), they call a repository, map the result with AutoMapper, and return it. No EF Core or SQL appears in a controller file.
@@ -119,13 +119,13 @@ Controllers are deliberately thin: their request DTOs are validated before the a
 
 **Why split them:** the database shape and the API shape are allowed to diverge without breaking each other. A column can be renamed, split, or added on the `Region` entity without touching every client that consumes `RegionDtoV1`; conversely, `RegionDtoV2` can evolve (e.g. add `HasImage`) without an EF Core migration. This is also what makes API versioning workable — `RegionDtoV1` and `RegionDtoV2` are two different DTOs mapped from the *same* `Region` entity.
 
-**Pagination Result** (`Models/Pagination Result/`) follows the same Domain/DTO split one level up: `WalkPageResult` wraps a list of domain `Walk` (used internally between repository and controller), `WalkPageDtoResult` wraps a list of `WalkDto` (what the controller actually returns), each carrying paging metadata (page number, page size, total count).
+**PaginationResult** (`Models/PaginationResult/`) follows the same Domain/DTO split one level up: `WalkPageResult` wraps a list of domain `Walk` (used internally between repository and controller), `WalkPageDtoResult` wraps a list of `WalkDto` (what the controller actually returns), each carrying paging metadata (page number, page size, total count).
 
 ## 5. Repositories
 
 | Interface | Implementation | Responsibility |
 |---|---|---|
-| `IRegionRespository` | `SQLRegionRepository` | CRUD for `Region` via `NZWalksDbContext` |
+| `IRegionRepository` | `SQLRegionRepository` | CRUD for `Region` via `NZWalksDbContext` |
 | `IWalkRepository` | `SQLWalkRepository` | CRUD for `Walk`, plus filtering (by name), sorting (name/length, asc/desc), and pagination, eager-loading `Difficulty`/`Region` |
 | `IImageRepository` | `LocalImageRepository` | Writes an uploaded file to local disk, builds its public URL, persists an `Image` row |
 | `ITokenRepository` | `TokenRepository` | Builds a signed JWT (email + role claims) from `Jwt:Key/Issuer/Audience` |
@@ -148,7 +148,7 @@ Controllers are deliberately thin: their request DTOs are validated before the a
 
 ## 7. Why this structure, overall
 
-- **A new developer's first question is "where do I look for X?"** — this layout answers it consistently: HTTP-facing code is always in `Controllers/`, persistence is always in `Data/` + `Respositries/`, wire contracts are always in `Models/DTO/`, and translation between the two is always in `Mappings/`. There's exactly one place each concern lives.
-- **Change isolation:** a request-shape change touches `Models/DTO/` and `Mappings/`; a schema change touches `Models/Domain/`, `Data/`, and a new file in `Migrations/`; a query-behavior change touches only `Respositries/`. These rarely overlap, which keeps diffs small and reviewable.
+- **A new developer's first question is "where do I look for X?"** — this layout answers it consistently: HTTP-facing code is always in `Controllers/`, persistence is always in `Data/` + `Repositories/`, wire contracts are always in `Models/DTO/`, and translation between the two is always in `Mappings/`. There's exactly one place each concern lives.
+- **Change isolation:** a request-shape change touches `Models/DTO/` and `Mappings/`; a schema change touches `Models/Domain/`, `Data/`, and a new file in `Migrations/`; a query-behavior change touches only `Repositories/`. These rarely overlap, which keeps diffs small and reviewable.
 - **What's easy to change today:** DTO shapes, mapping rules, adding a new endpoint/action, adding a new repository method.
-- **What's hard to change today** (see [03-FINDINGS-AND-TECH-DEBT.md](./03-FINDINGS-AND-TECH-DEBT.md) for the full list): splitting the project into class libraries after the fact (everything currently references everything else within one assembly), swapping image storage away from local disk (the path is hardcoded relative to content root), and fixing the `Respositries` / `Pagination Result` naming without a rename pass across the whole codebase.
+- **What's hard to change today** (see [03-FINDINGS-AND-TECH-DEBT.md](./03-FINDINGS-AND-TECH-DEBT.md) for the full list): splitting the project into class libraries after the fact (everything currently references everything else within one assembly), and swapping image storage away from local disk (the path is hardcoded relative to content root).

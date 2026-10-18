@@ -68,11 +68,11 @@ Connection strings (`NZWalksConnectionString`, `NZWalksAuthConnectionString`) an
 
 ## Architecture
 
-**Controller → AutoMapper → Repository → EF Core DbContext.** Controllers never touch a DbContext directly; they map DTO ↔ domain model and delegate to an interface from `Respositries/` (note the misspelled folder/namespace `NZWalks.API.Respositries` — keep it consistent when adding files there).
+**Controller → AutoMapper → Repository → EF Core DbContext.** Controllers never touch a DbContext directly; they map DTO ↔ domain model and delegate to an interface from `Repositories/` (namespace `NZWalks.API.Repositories`).
 
 - `Models/Domain/` — EF entities (`Region`, `Walk`, `Difficulty`, `Image`). `Models/DTO/` — request/response shapes, with no validation attributes. `Validators/` — one FluentValidation `AbstractValidator<TDto>` per request DTO (ADR-0001).
 - `Mappings/AutoMapperProfiles.cs` — every DTO↔domain map is registered in this one profile. A new DTO needs an entry here or mapping silently produces empty objects.
-- `Respositries/` — `IRegionRespository`/`SQLRegionRepository`, `IWalkRepository`/`SQLWalkRepository`, `ITokenRepository`/`TokenRepository` (JWT minting), `IImageRepository`/`LocalImageRepository` (writes to disk). All registered `AddScoped` in `Program.cs`.
+- `Repositories/` — `IRegionRepository`/`SQLRegionRepository`, `IWalkRepository`/`SQLWalkRepository`, `ITokenRepository`/`TokenRepository` (JWT minting), `IImageRepository`/`LocalImageRepository` (writes to disk). All registered `AddScoped` in `Program.cs`.
 - `Data/` — `NZWalksDbContext` (domain, seeds 3 difficulties + 6 regions by hard-coded GUIDs in `OnModelCreating`) and `NZWalksAuthDbContext : IdentityDbContext` (seeds `Reader`/`Writer`/`Admin` roles by hard-coded IDs).
 
 Everything is wired in `Program.cs`; there is no extensions/startup-module layer. The tail of that file holds a long commented-out TODO backlog left by the author — treat it as a roadmap, not as instructions to execute.
@@ -98,5 +98,5 @@ When adding a versioned action, add the matching DTO + AutoMapper map, and remem
 
 ## Notes
 
-- `NZWalks/.vs/` and the `obj/` build artifacts are tracked in git despite `.gitignore`; changes to them are noise — do not stage or "fix" them unless asked.
+- `NZWalks/.vs/`, `obj/` and `bin/` are build and IDE artifacts: they are in `.gitignore` and none are tracked. Never stage or force-add them (stage files by name, not `git add -A` on the repo root).
 - `WeatherForecastController`/`WeatherForecast.cs` (template scaffolding) have been deleted.

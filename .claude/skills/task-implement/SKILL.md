@@ -42,7 +42,7 @@ If it doesn't exist, create it with `create_group`. If the sidebar tools aren't 
 
 - Change only the files the subtask names. Anything else you notice, list it at the end as
   "spotted, not changed".
-- Follow `CLAUDE.md` conventions: the misspelled `Respositries` namespace, comment style, and
+- Follow `CLAUDE.md` conventions: the `Repositories` folder and namespace, comment style, and
   match the surrounding code.
 - Never write secrets into files. The repo is public.
 - Build from `NZWalks/`: `dotnet build`. Report the errors (0 expected) and the warning count
