@@ -8,7 +8,7 @@ using System.Security.Claims;
 namespace NZWalks.API.Controllers
 {
     //Class-level guard: every action here is Admin-only, so a new action can't be added unprotected
-    [Authorize(Roles = RoleNames.Admin)]
+    [Authorize(Policy = PolicyNames.CanAdmin)]
     [Route("api/[controller]")]
     [ApiController]
     public class UsersController : ControllerBase

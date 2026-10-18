@@ -130,7 +130,8 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 - Notify the user out-of-band (email) when their account locks, rather than revealing it in the API; consider escalating lockout (5 min, then 15, then 1 h) via a custom `UserManager` if the API ever guards anything valuable.
 - The warnings now logged (`Rate limit hit by…`, `Login refused for locked-out user…`) are the data to base these decisions on.
 
-### 18. New endpoints are public by default; role rules are repeated strings — **OPEN**
+### 18. New endpoints are public by default; role rules are repeated strings — **RESOLVED 2026-10-15**
+**Resolution:** `Program.cs` now has `AddAuthorization` with a `FallbackPolicy` that requires an authenticated user, so an endpoint with no authorization metadata fails closed (401). `[AllowAnonymous]` is on the `Register` and `Login` actions only. The role rules are the named policies `CanRead` (Reader, Writer, Admin), `CanWrite` (Writer, Admin) and `CanAdmin` (Admin) in `Constants/PolicyNames.cs`, and every controller attribute uses `[Authorize(Policy = …)]`. Behaviour change: `CanRead` includes Writer. See [ADR-0009](./decisions.md#adr-0009--fail-closed-authorization-and-named-policies). The text below describes the state when the finding was written.
 **Files:** every controller; `NZWalks.API/Program.cs` (no `AddAuthorization` policies, no `FallbackPolicy`)
 **Current behavior:**
 - Authorization is opt-in: an action with no `[Authorize]` is anonymous. Finding #8 existed only because someone forgot the attribute.
@@ -176,6 +177,6 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 | 15 | Structural | Low (accepted trade-off) | `Program.cs` |
 | 16 | Structural | Medium (only matters once scaled out) | `Program.cs` |
 | 17 | Security/Config | Low | `Program.cs`, `Controllers/AuthController.cs` |
-| 18 | Security | Medium | all controllers, `Program.cs` |
+| 18 | Security | Medium — **resolved 2026-10-15** | all controllers, `Program.cs` |
 | 19 | Security | Medium | `Validators/ImageUploadDtoValidator.cs`, `Respositries/LocalImageRepository.cs`, `Program.cs` |
 | 20 | Tooling | Medium — **resolved 2026-10-15** (style baseline A1, 0 warnings A2) | repo root, `Models/DTO/*` |

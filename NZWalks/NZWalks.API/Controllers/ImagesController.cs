@@ -25,7 +25,7 @@ namespace NZWalks.API.Controllers
         [HttpPost]
         [Route("Upload")]
         //Upload writes to disk and the Images table, so it is a write: Writer/Admin (D6). Downloads under /Images stay public.
-        [Authorize(Roles = $"{RoleNames.Writer},{RoleNames.Admin}")]
+        [Authorize(Policy = PolicyNames.CanWrite)]
         public async Task<IActionResult> Upload([FromForm] ImageUploadDto img, CancellationToken cancellationToken)
         {
             //File type, size and fields are checked by ImageUploadDtoValidator before this runs

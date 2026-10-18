@@ -3,6 +3,7 @@ using Asp.Versioning.ApiExplorer;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
@@ -176,6 +177,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         //One process issues and validates on one clock, so the default 5-minute grace past exp is not needed
         ClockSkew = TimeSpan.Zero
     });
+
+//Named policies replace the role strings repeated on the controllers; RequireRole(a, b, c) means "any of them"
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(PolicyNames.CanRead, policy => policy.RequireRole(RoleNames.Reader, RoleNames.Writer, RoleNames.Admin));
+    options.AddPolicy(PolicyNames.CanWrite, policy => policy.RequireRole(RoleNames.Writer, RoleNames.Admin));
+    options.AddPolicy(PolicyNames.CanAdmin, policy => policy.RequireRole(RoleNames.Admin));
+
+    //Fail closed: an endpoint with no authorization metadata at all needs a logged-in user, so a new
+    //controller is protected by default. [AllowAnonymous] or any [Authorize] on an action overrides this.
+    options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
+});
 
 
 

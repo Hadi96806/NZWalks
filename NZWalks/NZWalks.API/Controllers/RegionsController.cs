@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NZWalks.API.Constants;
 using NZWalks.API.Data;
 using NZWalks.API.Models.Domain;
 using NZWalks.API.Models.DTO;
@@ -32,7 +33,7 @@ namespace NZWalks.API.Controllers
 
         //Get All Regions V1
         [HttpGet]
-        [Authorize(Roles = "Reader,Admin")]
+        [Authorize(Policy = PolicyNames.CanRead)]
         [MapToApiVersion("1.0")]
         public async Task<IActionResult> GetAllV1(CancellationToken cancellationToken)
         {
@@ -48,7 +49,7 @@ namespace NZWalks.API.Controllers
 
         //Get All Regions v2
         [HttpGet]
-        [Authorize(Roles = "Reader,Admin")]
+        [Authorize(Policy = PolicyNames.CanRead)]
         [MapToApiVersion("2.0")]
         public async Task<IActionResult> GetAllV2(CancellationToken cancellationToken)
         {
@@ -65,7 +66,7 @@ namespace NZWalks.API.Controllers
         //Get Region By Id
         [HttpGet]
         [Route("{id:Guid}")]
-        [Authorize(Roles = "Reader,Admin")]
+        [Authorize(Policy = PolicyNames.CanRead)]
         public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         {
             //var region = dbContext.Regions.FirstOrDefault(x=>x.Id==id);
@@ -80,7 +81,7 @@ namespace NZWalks.API.Controllers
 
         //Create New Region
         [HttpPost]
-        [Authorize(Roles = "Writer,Admin")]
+        [Authorize(Policy = PolicyNames.CanWrite)]
         public async Task<IActionResult> Create(AddRegionDto addRegionDto, CancellationToken cancellationToken)
         {
             var regionDomainModal = mapper.Map<Region>(addRegionDto);
@@ -95,7 +96,7 @@ namespace NZWalks.API.Controllers
         //Update Region
         [HttpPut]
         [Route("{id:Guid}")]
-        [Authorize(Roles = "Writer,Admin")]
+        [Authorize(Policy = PolicyNames.CanWrite)]
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateRegionDto updateRegionDto, CancellationToken cancellationToken)
         {
             var updateRegion = mapper.Map<Region>(updateRegionDto);
@@ -114,7 +115,7 @@ namespace NZWalks.API.Controllers
         //Delete Region
         [HttpDelete]
         [Route("{id:Guid}")]
-        [Authorize(Roles = "Writer,Admin")]
+        [Authorize(Policy = PolicyNames.CanWrite)]
         public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken cancellationToken)
         {
             var regionDomainModel = await regionRepositry.DeleteAsync(id, cancellationToken);

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -30,6 +31,8 @@ namespace NZWalks.API.Controllers
 
 
         //Post: /api/Auth/Register
+        //Public by design: the fallback policy requires a login everywhere else, and nobody has a token yet
+        [AllowAnonymous]
         [HttpPost]
         [Route("Register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequestDto registerRequestDto)
@@ -76,6 +79,8 @@ namespace NZWalks.API.Controllers
         }
 
         //Post; /api/Auth/Login
+        //Public by design: this is where a token comes from
+        [AllowAnonymous]
         [HttpPost]
         [Route("Login")]
         public async Task<IActionResult> Login([FromBody] LogInRequestDto logInRequestDto)

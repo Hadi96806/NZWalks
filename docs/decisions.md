@@ -35,6 +35,7 @@ ones that are inconvenient. An entry that lists only upsides is not finished.
 | [0006](#adr-0006--rate-limiting-and-account-lockout) | Rate limiting and account lockout | Accepted | 2026-10-13 |
 | [0007](#adr-0007--access-policy-for-walks-and-images) | Access policy for Walks and Images | Accepted | 2026-10-13 |
 | [0008](#adr-0008--week-2-hooks-what-runs-when-and-what-fails) | Week 2 hooks: what runs when, and what fails | Accepted | 2026-10-15 |
+| [0009](#adr-0009--fail-closed-authorization-and-named-policies) | Fail-closed authorization and named policies | Accepted | 2026-10-15 |
 
 ---
 
@@ -446,3 +447,65 @@ baseline is now empty**, so every warning fails the Stop hook. Re-run
   Visual Studio or a terminal is not checked until the next message.
 - They call `powershell`, so they work on Windows only; a Mac/Linux clone gets hook errors.
 - The build stamp lives in `.claude/hooks/.state/` (gitignored).
+
+---
+
+## ADR-0009 — Fail-closed authorization and named policies
+
+**Status:** Accepted · **Date:** 2026-10-15 · Closes finding #18; builds on [ADR-0007](#adr-0007--access-policy-for-walks-and-images).
+
+### Context
+
+Authorization was opt-in: an action with no `[Authorize]` was anonymous, and finding #8 (Walks and
+Images open to the world) happened only because someone forgot the attribute. ADR-0007 closed that
+hole by adding attributes, and explicitly left the structural fix open. The role rules were also
+repeated as strings on 11 actions (Regions used the literals `"Reader,Admin"` and `"Writer,Admin"`),
+so a typo silently locked everyone out of one action, and changing who may read meant editing every
+read action.
+
+### Options
+
+1. **Keep opt-in** and rely on review to catch a missing attribute.
+2. **Fail closed with a `FallbackPolicy`** that requires a logged-in user, plus named policies for
+   the role rules.
+3. **Fail closed with `RequireRole` on the fallback itself** (a role required everywhere by default).
+
+### Decision
+
+**Option 2.** In `AddAuthorization` (`Program.cs`):
+
+- `FallbackPolicy` = an authenticated user, with no role check. Every token already carries a role,
+  because Login refuses a user who has none. The fallback applies only to endpoints with **no**
+  authorization metadata, so any `[Authorize]` or `[AllowAnonymous]` overrides it.
+- `[AllowAnonymous]` is on the `Register` and `Login` **actions**, not on `AuthController`, so a
+  future third action there is protected by default. These are the only anonymous actions.
+- Named policies, with their names in `Constants/PolicyNames.cs` (const strings, so attributes can
+  use them): **`CanRead`** = Reader, Writer or Admin; **`CanWrite`** = Writer or Admin; **`CanAdmin`**
+  = Admin. Regions, Walks and Images use `[Authorize(Policy = PolicyNames.CanRead | CanWrite)]`.
+- `UsersController` uses `CanAdmin` at class level. The plan for this change had kept
+  `Roles = RoleNames.Admin` there and rejected a `CanAdmin` policy; `CanAdmin` was added during the
+  work so that every attribute in the API refers to a policy, and its behaviour is identical.
+
+### Consequences
+
+- **A forgotten attribute now means 401, not an open endpoint.** A new action is reachable by any
+  logged-in user until it is given a policy, so a new write action still needs `CanWrite`
+  deliberately; the fallback only guarantees "logged in".
+- **Behaviour change: `CanRead` includes Writer.** A user holding only Writer used to be able to
+  change walks and regions but not read them; now they can read. Register still gives everyone
+  Reader, so this only affects an account whose Reader role an Admin revoked.
+- A policy name is still a string looked up at request time, so a literal typo fails at runtime;
+  always use the `PolicyNames` constants.
+- `/Images/*` downloads and the Swagger UI stay public: static files and the Development-only Swagger
+  middleware are not endpoints, so the fallback never sees them (ADR-0007 keeps images public).
+- Rate limiting is unchanged. The limiter runs before authentication, so a 401 still counts against
+  the global per-IP limit.
+- **Week 4 (finding #4, CORS):** `UseCors` must sit before `UseAuthorization`, or browser preflight
+  requests will be rejected with 401.
+
+### Verified 2026-10-15
+
+No token → 401 on Regions, Walks and Images upload; Login and Register reachable without a token;
+Reader reads and cannot write; a Writer-only user reads (200) and writes (201); `/Images` and
+Swagger load without a token; and a scratch copy with a deliberately un-attributed action returned
+401 with no token and 200 for a Reader, which shows the fallback itself works.

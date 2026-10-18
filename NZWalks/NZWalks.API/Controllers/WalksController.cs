@@ -27,7 +27,7 @@ namespace NZWalks.API.Controllers
         //Get All Walks
         //GET: /api/walk?filterOn=Name&filterQuery=track&sortBy=length&isAscending=true&pageNumber=1&pageSize=10
         [HttpGet]
-        [Authorize(Roles = $"{RoleNames.Reader},{RoleNames.Admin}")]
+        [Authorize(Policy = PolicyNames.CanRead)]
         public async Task<IActionResult> GetAll([FromQuery] WalkQueryDto query, CancellationToken cancellationToken)
         {
             var walkPageResult = await walkRepository.GetAllAsync(query.FilterOn, query.FilterQuery, query.SortBy, query.IsAscending ?? true,
@@ -41,7 +41,7 @@ namespace NZWalks.API.Controllers
         //Get Walk by id
         [HttpGet]
         [Route("{id:Guid}")]
-        [Authorize(Roles = $"{RoleNames.Reader},{RoleNames.Admin}")]
+        [Authorize(Policy = PolicyNames.CanRead)]
         public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         {
             var walk = await walkRepository.GetByIdAsync(id, cancellationToken);
@@ -59,7 +59,7 @@ namespace NZWalks.API.Controllers
 
         //Create Walk
         [HttpPost]
-        [Authorize(Roles = $"{RoleNames.Writer},{RoleNames.Admin}")]
+        [Authorize(Policy = PolicyNames.CanWrite)]
         public async Task<IActionResult> Create([FromBody] AddWalkDto addWalkDto, CancellationToken cancellationToken)
         {
             //Map Dto to Domain Model
@@ -73,7 +73,7 @@ namespace NZWalks.API.Controllers
         // Update Walk
         [HttpPut]
         [Route("{id:Guid}")]
-        [Authorize(Roles = $"{RoleNames.Writer},{RoleNames.Admin}")]
+        [Authorize(Policy = PolicyNames.CanWrite)]
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateWalkDto updateWalkDto, CancellationToken cancellationToken)
         {
             //Map Dto to Domainmodal
@@ -92,7 +92,7 @@ namespace NZWalks.API.Controllers
         // Delete Walk
         [HttpDelete]
         [Route("{id:guid}")]
-        [Authorize(Roles = $"{RoleNames.Writer},{RoleNames.Admin}")]
+        [Authorize(Policy = PolicyNames.CanWrite)]
         public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken cancellationToken)
         {
             var walkToDelete = await walkRepository.DeleteAsync(id, cancellationToken);
