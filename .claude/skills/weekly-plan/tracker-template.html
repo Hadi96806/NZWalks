@@ -1,0 +1,408 @@
+<title>NZWalks Week __WEEK__ Sprint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  /* Layout: sticky progress header over a single 880px column; sections hold decision cards
+     (amber rail) above task cards with subtask checklists and a plan button per task. */
+  :root {
+    --bg:#f2f5f6; --surface:#ffffff; --surface-2:#e8eef0; --line:#d5dfe2; --line-soft:#e6ecee;
+    --fg:#0f1c20; --fg-dim:#566a71; --fg-faint:#7d9299;
+    --accent:#0d6b76; --accent-soft:#d6eef0; --ok:#1c7a45; --ok-soft:#d8f0e2;
+    --decide:#8a5400; --decide-soft:#fbeacd; --block:#a8261e; --block-soft:#fadcd9; --track:#dde5e7;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#0d1416; --surface:#151e21; --surface-2:#1c282c; --line:#27373c; --line-soft:#1e2b2f;
+    --fg:#e4eef0; --fg-dim:#94a8af; --fg-faint:#6d838a; --accent:#45b8b0; --accent-soft:#0f3b3c;
+    --ok:#4cc281; --ok-soft:#0f3524; --decide:#e0a63f; --decide-soft:#3a2c0f; --block:#ef7f74; --block-soft:#3d1a17; --track:#24343a;
+    color-scheme: dark; } }
+  :root[data-theme="dark"] {
+    --bg:#0d1416; --surface:#151e21; --surface-2:#1c282c; --line:#27373c; --line-soft:#1e2b2f;
+    --fg:#e4eef0; --fg-dim:#94a8af; --fg-faint:#6d838a; --accent:#45b8b0; --accent-soft:#0f3b3c;
+    --ok:#4cc281; --ok-soft:#0f3524; --decide:#e0a63f; --decide-soft:#3a2c0f; --block:#ef7f74; --block-soft:#3d1a17; --track:#24343a;
+    color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { background:var(--bg); color:var(--fg); font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif; font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased; }
+  code, .mono { font-family:"IBM Plex Mono",ui-monospace,Consolas,monospace; }
+  code { font-size:.86em; background:var(--surface-2); border-radius:3px; padding:.1em .34em; word-break:break-word; }
+  .wrap { max-width:880px; margin:0 auto; padding-inline:18px; }
+  .topbar { position:sticky; top:env(safe-area-inset-top,0px); z-index:20; background:var(--bg); border-bottom:1px solid var(--line); }
+  .topbar-inner { padding-block:14px 12px; }
+  .eyebrow { font-size:11px; letter-spacing:.1em; text-transform:uppercase; font-weight:600; color:var(--accent); margin:0 0 4px; }
+  h1 { font-size:clamp(21px,4.4vw,27px); line-height:1.18; margin:0 0 3px; font-weight:600; letter-spacing:-.015em; text-wrap:balance; }
+  .sub { margin:0; color:var(--fg-dim); font-size:13.5px; }
+  .meter-row { display:flex; align-items:center; gap:14px; margin-top:12px; flex-wrap:wrap; }
+  .meter { flex:1 1 200px; min-width:0; height:8px; background:var(--track); border-radius:99px; overflow:hidden; }
+  .meter-fill { height:100%; width:0%; background:var(--accent); border-radius:99px; transition:width 320ms cubic-bezier(.4,0,.2,1); }
+  .pct { font-family:"IBM Plex Mono",monospace; font-size:22px; font-weight:600; font-variant-numeric:tabular-nums; min-width:62px; }
+  .meter-meta { font-size:12px; color:var(--fg-dim); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .sync { font-size:11px; color:var(--fg-faint); display:flex; align-items:center; gap:5px; }
+  .sync::before { content:""; width:6px; height:6px; border-radius:99px; background:var(--fg-faint); flex:none; }
+  .sync[data-state="on"]::before { background:var(--ok); } .sync[data-state="off"]::before { background:var(--decide); }
+  main { padding-block:26px 56px; }
+  .alert { background:var(--block-soft); border:1px solid var(--block); border-radius:8px; padding:12px 15px; margin-bottom:28px; font-size:14px; }
+  .alert b { color:var(--block); }
+  .alert ul { margin:6px 0 0; padding-left:18px; } .alert li { margin:3px 0; }
+  .section { margin-bottom:34px; }
+  .section-head { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; padding-bottom:9px; border-bottom:2px solid var(--fg); margin-bottom:4px; }
+  .section-num { font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; color:var(--accent); letter-spacing:.06em; }
+  .section-head h2 { font-size:18.5px; font-weight:600; margin:0; flex:1 1 auto; min-width:0; }
+  .section-stat { font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--fg-dim); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .section-blurb { color:var(--fg-dim); font-size:13.5px; margin:10px 0 18px; max-width:66ch; }
+  .group-label { font-size:11px; letter-spacing:.09em; text-transform:uppercase; font-weight:600; color:var(--fg-faint); margin:22px 0 10px; }
+  .decision { background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--decide); border-radius:0 7px 7px 0; padding:13px 15px; margin-bottom:10px; }
+  .decision h3 { font-size:14.5px; font-weight:600; margin:0 0 6px; display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; }
+  .d-tag { font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:600; color:var(--decide); background:var(--decide-soft); padding:2px 6px; border-radius:3px; flex:none; }
+  .decision p { margin:0 0 7px; font-size:13.5px; color:var(--fg-dim); }
+  .rec { font-size:13px; background:var(--surface-2); border-radius:5px; padding:8px 11px; margin:0; color:var(--fg); }
+  .rec b { color:var(--accent); font-weight:600; }
+  .task { background:var(--surface); border:1px solid var(--line); border-radius:8px; margin-bottom:11px; overflow:hidden; }
+  .task.is-done { border-color:var(--ok); }
+  .task-head { display:flex; align-items:flex-start; gap:10px; padding:12px 15px 10px; flex-wrap:wrap; }
+  .task-title { font-size:14.5px; font-weight:600; margin:0; flex:1 1 200px; min-width:0; }
+  .task.is-done .task-title { color:var(--fg-dim); }
+  .task-est, .task-count { font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--fg-faint); font-variant-numeric:tabular-nums; white-space:nowrap; padding-top:2px; }
+  .task.is-done .task-count { color:var(--ok); }
+  .how { font-size:13px; color:var(--fg-dim); margin:0 15px 11px; padding-left:11px; border-left:2px solid var(--accent-soft); max-width:68ch; }
+  .how b { color:var(--fg); font-weight:500; }
+  .planbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:0 15px 12px; }
+  .pbtn { font:500 13px "IBM Plex Sans",sans-serif; border-radius:6px; padding:6px 12px; border:1px solid var(--accent); background:var(--accent); color:var(--bg); cursor:pointer; text-decoration:none; display:inline-flex; gap:6px; align-items:center; }
+  .pbtn.ghost { background:transparent; color:var(--accent); }
+  .pbtn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .plan-note { font-size:12px; color:var(--fg-faint); }
+  .plan-cmd { display:none; flex-basis:100%; background:var(--surface-2); border-radius:6px; padding:8px 10px; font:12.5px "IBM Plex Mono",monospace; white-space:pre-wrap; word-break:break-word; color:var(--fg); }
+  .plan-cmd.open { display:block; }
+  ul.subs { list-style:none; margin:0; padding:0; border-top:1px solid var(--line-soft); }
+  ul.subs li { border-bottom:1px solid var(--line-soft); } ul.subs li:last-child { border-bottom:0; }
+  .sub-row { display:flex; align-items:flex-start; gap:10px; padding:9px 15px; cursor:pointer; transition:background 120ms; }
+  .sub-row:hover { background:var(--surface-2); }
+  .sub-row input { margin:2px 0 0; flex:none; width:15px; height:15px; accent-color:var(--accent); cursor:pointer; }
+  .sub-text { font-size:13.5px; flex:1 1 auto; min-width:0; }
+  .sub-row.done .sub-text { color:var(--fg-faint); text-decoration:line-through; text-decoration-thickness:1px; }
+  .ref { display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:500; padding:1px 5px; border-radius:3px; margin-left:6px; white-space:nowrap; vertical-align:1px; }
+  .ref.doc { color:var(--accent); background:var(--accent-soft); } .ref.high { color:var(--block); background:var(--block-soft); }
+  .notes { border-top:1px solid var(--line); padding-top:22px; margin-top:40px; }
+  .notes h2 { font-size:15px; margin:0 0 12px; font-weight:600; }
+  .note-grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); }
+  .note { background:var(--surface); border:1px solid var(--line); border-radius:7px; padding:12px 14px; }
+  .note h3 { font-size:12.5px; margin:0 0 7px; font-weight:600; }
+  .note.done h3 { color:var(--ok); } .note.out h3 { color:var(--fg-dim); } .note.risk h3 { color:var(--block); }
+  .note ul { margin:0; padding-left:16px; font-size:12.5px; color:var(--fg-dim); } .note li { margin-bottom:4px; }
+  .reset { margin-top:22px; font-size:12px; background:none; border:1px solid var(--line); color:var(--fg-dim); padding:6px 12px; border-radius:5px; cursor:pointer; font-family:inherit; }
+  .reset:hover { border-color:var(--block); color:var(--block); }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:3px; }
+  .pbtn[disabled] { opacity:.6; cursor:default; }
+  .pbtn.small { padding:3px 9px; font-size:12px; }
+  .plan-note.warn { color:var(--decide); }
+  .listener { margin-top:7px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .sync.l-on::before { background:var(--ok); } .sync.l-off::before { background:var(--decide); }
+  .start-cmd { flex-basis:100%; background:var(--surface-2); border-radius:6px; padding:7px 10px; font:12.5px "IBM Plex Mono",monospace; word-break:break-word; display:none; }
+  .start-cmd.open { display:block; }
+
+  /* Ask Claude chat: docked (resizable from the left edge) or floating (move by header, resize from corner) */
+  .chat { position:fixed; z-index:40; background:var(--surface); border:1px solid var(--line); display:none; grid-template-rows:auto 1fr auto; min-width:300px; min-height:260px; }
+  .chat.open { display:grid; }
+  .chat.dock { top:0; right:0; bottom:0; width:var(--chat-w,440px); max-width:calc(100vw - 40px); border-width:0 0 0 1px; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px); }
+  .chat.float { border-radius:10px; box-shadow:0 12px 40px rgb(0 0 0 / .22); resize:both; overflow:hidden; max-width:calc(100vw - 16px); max-height:calc(100vh - 16px); }
+  .grip { position:absolute; left:-5px; top:0; bottom:0; width:10px; cursor:ew-resize; touch-action:none; }
+  .grip::after { content:""; position:absolute; left:4px; top:50%; width:2px; height:36px; margin-top:-18px; border-radius:2px; background:var(--line); }
+  .grip:hover::after { background:var(--accent); }
+  .chat.float .grip { display:none; }
+  .dhead { padding:12px 14px; border-bottom:1px solid var(--line); display:flex; gap:8px; align-items:center; }
+  .chat.float .dhead { cursor:move; touch-action:none; }
+  .dhead .t { flex:1; min-width:0; } .dhead b { display:block; font-size:15px; font-weight:600; } .dhead small { color:var(--fg-dim); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .msgs { overflow-y:auto; padding:14px; display:grid; gap:12px; align-content:start; min-height:0; }
+  .msg { padding:10px 12px; border-radius:8px; white-space:pre-wrap; font-size:14px; min-width:0; overflow-wrap:anywhere; }
+  .msg.user { background:var(--accent-soft); justify-self:end; max-width:88%; }
+  .msg.ai { background:var(--surface-2); }
+  .msg.hint { color:var(--fg-dim); font-size:13px; background:none; padding:0; }
+  .dfoot { border-top:1px solid var(--line); padding:12px 14px; display:grid; gap:8px; }
+  .dfoot textarea { width:100%; min-height:60px; resize:vertical; font:14px "IBM Plex Sans",sans-serif; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:7px; padding:8px 10px; }
+  .unavail { color:var(--decide); font-size:13px; }
+  @media (max-width:640px) { .chat.dock,.chat.float { inset:auto 0 0 0!important; width:100%!important; height:70vh!important; border-radius:12px 12px 0 0; resize:none; } .grip,#mode { display:none; } }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+</style>
+
+<div class="topbar">
+  <div class="wrap topbar-inner">
+    <p class="eyebrow">__EYEBROW__</p>
+    <h1>NZWalks Week __WEEK__ Sprint</h1>
+    <p class="sub">__SUB__</p>
+    <div class="meter-row">
+      <div class="pct mono" id="pct">0%</div>
+      <div class="meter"><div class="meter-fill" id="fill"></div></div>
+      <div class="meter-meta" id="counts">0 / 0 subtasks</div>
+    </div>
+    <div class="meter-row" style="margin-top:7px"><div class="sync" id="sync" data-state="wait">connecting&hellip;</div></div>
+    <div class="listener">
+      <div class="sync l-off" id="listener">Planning session: checking&hellip;</div>
+      <button class="pbtn ghost small" id="startcmd-btn" type="button">How to start it</button>
+      <div class="start-cmd" id="startcmd">Open a new Claude Code session in the NZWalks folder (it will file itself under the NZWalks group) and send:
+/loop Use the plan-queue skill</div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+  <div id="sections"></div>
+
+  <div class="notes">
+    <h2>Context you'll want mid-week</h2>
+    <div class="note-grid">
+__NOTES__
+    </div>
+    <button class="reset" id="reset" type="button">Reset all progress</button>
+  </div>
+</main>
+
+<aside class="chat dock" id="chat" aria-label="Ask Claude">
+  <div class="grip" id="grip" role="separator" aria-orientation="vertical" aria-label="Resize chat" tabindex="0"></div>
+  <div class="dhead" id="dhead">
+    <div class="t"><b id="dtitle">Ask Claude</b><small id="dsub"></small></div>
+    <button class="pbtn ghost small" id="mode" type="button">Float</button>
+    <button class="pbtn ghost small" id="close" type="button">Close</button>
+  </div>
+  <div class="msgs" id="msgs"></div>
+  <form class="dfoot" id="form">
+    <textarea id="q" placeholder="Ask about this task…"></textarea>
+    <div class="planbar" style="margin:0"><button class="pbtn" type="submit">Ask</button><span class="unavail" id="unavail" hidden>Chat isn't available in this view.</span></div>
+  </form>
+</aside>
+
+<script>
+const CWD = "C:\\Users\\hadi.tawil\\Desktop\\Testing\\NZWalks";
+const DATA = __DATA__;
+const planPrompt = t => `Use the task-plan skill to plan Week __WEEK__ task ${t.id.toUpperCase()}, "${t.title}", from the Week __WEEK__ tracker (__TRACKER_URL__). Rely on the Week __WEEK__ tracker as the weekly plan. Build it the same way and in the same structure as the Week 1 plan artifacts. File this session under the "NZWalks" sidebar group.`;
+
+const KEY = "nzwalks-week__WEEK__";
+const CONTEXT = `__CONTEXT__`;
+
+const ALL_IDS = DATA.flatMap(s => s.tasks.flatMap(t => t.subs.map(x => x.id)));
+const TOTAL = ALL_IDS.length;
+let done = {}, docRef = null, writing = false, queued = false, writable = true;
+let reqs = {}, listener = null, planDb = null;
+const $ = id => document.getElementById(id);
+const badge = r => !r ? "" : r === "high" ? '<span class="ref high">HIGH</span>' : `<span class="ref doc">${r}</span>`;
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const strip = h => String(h).replace(/<[^>]+>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+const findTask = id => { for (const s of DATA) { const t = s.tasks.find(x => x.id === id); if (t) return { sec: s, task: t }; } return null; };
+
+/* ---- Plan button: writes a request that the Planning session picks up ---- */
+const PLAN_URL_OK = /^https:\/\/claude\.ai\/artifact\/[A-Za-z0-9_-]+$/;
+const listenerOnline = () => !!(listener && listener.lastSeen && Date.now() - new Date(listener.lastSeen).getTime() < 5 * 60 * 1000);
+function planbar(t) {
+  const r = reqs[t.id], st = r && r.status;
+  let main = "", note = "";
+  if (st === "done" && PLAN_URL_OK.test(r.planUrl || "")) {
+    main = `<a class="pbtn" href="${r.planUrl}" target="_blank" rel="noopener">Open plan</a>`;
+    note = "Plan ready, with Ask Claude and Implement on every step.";
+  } else if (st === "pending") {
+    main = `<button class="pbtn" type="button" disabled>Queued…</button><button class="pbtn ghost small" type="button" data-cancel="${t.id}">Cancel</button>`;
+    note = listenerOnline() ? "The Planning session will pick this up within a couple of minutes." : "Waiting, but no Planning session is listening. Start one (top of the page) or copy the prompt.";
+  } else if (st === "working") {
+    main = `<button class="pbtn" type="button" disabled>Planning…</button>`;
+    note = esc(r.note) || "The Planning session is writing the plan. It may ask you questions there.";
+  } else {
+    main = `<button class="pbtn" type="button" data-plan="${t.id}">Plan</button>`;
+    note = st === "error" ? "Last attempt failed: " + esc(r.note || "see the Planning session") : "Writes this task's plan with subtasks and files it under Week __WEEK__ in Notion.";
+  }
+  const fallback = st === "done" ? "" : `<button class="pbtn ghost small" type="button" data-cmd="${t.id}">Copy prompt</button>`;
+  return `${main}<button class="pbtn ghost" type="button" data-ask="${t.id}">Ask Claude</button>${fallback}<span class="plan-note${st === "pending" && !listenerOnline() ? " warn" : ""}">${note}</span><div class="plan-cmd" id="cmd-${t.id}">${esc(planPrompt(t))}</div>`;
+}
+function paintPlans() {
+  DATA.forEach(s => s.tasks.forEach(t => {
+    const el = document.querySelector(`[data-pb="${t.id}"]`); if (!el) return;
+    const open = el.querySelector(".plan-cmd.open") !== null;
+    el.innerHTML = planbar(t);
+    if (open) el.querySelector(".plan-cmd").classList.add("open");
+  }));
+  const on = listenerOnline(), el = $("listener");
+  el.className = "sync " + (on ? "l-on" : "l-off");
+  el.textContent = on ? `Planning session online (seen ${Math.max(0, Math.round((Date.now() - new Date(listener.lastSeen).getTime()) / 1000))}s ago)` : "Planning session offline: Plan requests will wait";
+}
+async function writeRequest(id, body) {
+  if (!planDb) return false;
+  try { await planDb.doc("plan-requests/" + id).set(body); return true; } catch (e) { return false; }
+}
+
+function build() {
+  $("sections").innerHTML = DATA.map(sec => `
+    <section class="section">
+      <div class="section-head"><span class="section-num">${sec.num}</span><h2>${sec.title}</h2><span class="section-stat" data-sec="${sec.id}">0% &middot; ${sec.budget}</span></div>
+      <p class="section-blurb">${sec.blurb}</p>
+      <p class="group-label">Decisions to make first</p>
+      ${sec.decisions.map(d => `<div class="decision"><h3><span class="d-tag">${d.tag}</span><span>${d.title}</span></h3><p>${d.body}</p><p class="rec">${d.rec}</p></div>`).join("")}
+      <p class="group-label">Implementation</p>
+      ${sec.tasks.map(t => `
+        <div class="task" data-task="${t.id}">
+          <div class="task-head"><h4 class="task-title">${t.id.toUpperCase()} · ${t.title}${badge(t.ref)}</h4><span class="task-count" data-count="${t.id}">0/${t.subs.length}</span><span class="task-est">${t.est}</span></div>
+          <p class="how">${t.how}</p>
+          <div class="planbar" data-pb="${t.id}">${planbar(t)}</div>
+          <ul class="subs">${t.subs.map(s => `<li><label class="sub-row" for="cb-${s.id}"><input type="checkbox" id="cb-${s.id}" data-id="${s.id}"><span class="sub-text">${s.text}${badge(s.ref)}</span></label></li>`).join("")}</ul>
+        </div>`).join("")}
+    </section>`).join("");
+}
+
+document.addEventListener("change", e => {
+  const box = e.target.closest('input[type="checkbox"]'); if (!box) return;
+  if (box.checked) done[box.dataset.id] = true; else delete done[box.dataset.id];
+  paint(); persist();
+});
+document.addEventListener("click", async e => {
+  const t = e.target.closest("[data-cmd],[data-plan],[data-cancel],[data-ask],#startcmd-btn"); if (!t) return;
+  if (t.id === "startcmd-btn") { $("startcmd").classList.toggle("open"); return; }
+  if (t.dataset.ask) { openChat(t.dataset.ask); return; }
+  if (t.dataset.plan) {
+    const id = t.dataset.plan; t.disabled = true; t.textContent = "Queuing…";
+    const ok = await writeRequest(id, { status: "pending", requestedAt: new Date().toISOString() });
+    if (!ok) { t.disabled = false; t.textContent = "Plan"; const n = t.parentElement.querySelector(".plan-note"); n.classList.add("warn"); n.textContent = "Couldn't save the request (read-only or not syncing). Use Copy prompt instead."; }
+    return;
+  }
+  if (t.dataset.cancel) { try { await planDb.doc("plan-requests/" + t.dataset.cancel).delete(); } catch (err) {} return; }
+  const id = t.dataset.cmd, el = $("cmd-" + id);
+  el.classList.add("open");
+  try { await navigator.clipboard.writeText(el.textContent); t.textContent = "Copied"; }
+  catch (err) { const r = document.createRange(); r.selectNodeContents(el); getSelection().removeAllRanges(); getSelection().addRange(r); t.textContent = "Selected, press Ctrl+C"; }
+  setTimeout(() => t.textContent = "Copy prompt", 2000);
+});
+
+function paint() {
+  ALL_IDS.forEach(id => { const box = $("cb-" + id); if (!box) return; box.checked = !!done[id]; box.disabled = !writable; box.closest(".sub-row").classList.toggle("done", !!done[id]); });
+  DATA.forEach(sec => {
+    let d = 0, t = 0;
+    sec.tasks.forEach(task => {
+      const n = task.subs.filter(s => done[s.id]).length; d += n; t += task.subs.length;
+      document.querySelector(`[data-count="${task.id}"]`).textContent = `${n}/${task.subs.length}`;
+      document.querySelector(`[data-task="${task.id}"]`).classList.toggle("is-done", n === task.subs.length);
+    });
+    document.querySelector(`[data-sec="${sec.id}"]`).innerHTML = Math.round(d / t * 100) + "% &middot; " + sec.budget;
+  });
+  const n = ALL_IDS.filter(id => done[id]).length, pct = Math.round(n / TOTAL * 100);
+  $("pct").textContent = pct + "%"; $("fill").style.width = pct + "%"; $("counts").textContent = `${n} / ${TOTAL} subtasks`;
+}
+function setSync(state, text) { const el = $("sync"); el.dataset.state = state; el.textContent = text; }
+async function persist() {
+  if (!docRef || !writable) return;
+  if (writing) { queued = true; return; }
+  writing = true;
+  try { await docRef.set({ done, updatedAt: new Date().toISOString() }); }
+  catch (err) { if (err && err.code === "invalid_argument") { writable = false; setSync("off", "read-only — progress not saved"); paint(); } else setSync("off", "save failed — retry by ticking again"); }
+  finally { writing = false; if (queued) { queued = false; persist(); } }
+}
+async function boot() {
+  build(); paint(); setSync("wait", "connecting…");
+  let db = null; try { db = await window.claude?.use("db"); } catch (e) { db = null; }
+  if (!db) { writable = false; setSync("off", "not syncing — ticks won't be saved"); paint(); return; }
+  planDb = db;
+  // Plan requests: one doc per task id. Subscribe once; the Planning session updates them.
+  db.collection("plan-requests").onSnapshot(snap => {
+    reqs = {}; snap.docs.forEach(d => { reqs[d.id] = d.data(); });
+    paintPlans();
+  }, () => {});
+  db.doc("plan-listener/status").onSnapshot(snap => { listener = snap.exists ? snap.data() : null; paintPlans(); }, () => {});
+  setInterval(paintPlans, 30000);
+  docRef = db.doc("progress/week__WEEK__");
+  docRef.onSnapshot(snap => {
+    const body = snap.exists ? snap.data() : null;
+    done = body && body.done && typeof body.done === "object" ? Object.assign({}, body.done) : {};
+    paint(); setSync("on", "saved automatically");
+  }, err => { writable = false; setSync("off", err && err.code === "revoked" ? "sync ended" : "sync unavailable"); paint(); });
+  $("reset").addEventListener("click", () => { if (!writable) return; done = {}; paint(); persist(); });
+}
+
+/* ---- Ask Claude chat window: dock (resizable) / float (movable + resizable) ---- */
+const chat = $("chat");
+let layout = lsGet(KEY + ":chat", { mode: "dock", w: 440, x: null, y: 80, fw: 420, fh: 520 });
+function applyLayout() {
+  chat.classList.toggle("dock", layout.mode === "dock");
+  chat.classList.toggle("float", layout.mode === "float");
+  $("mode").textContent = layout.mode === "dock" ? "Float" : "Dock";
+  if (layout.mode === "dock") {
+    chat.style.cssText = "";
+    chat.style.setProperty("--chat-w", Math.min(Math.max(layout.w, 300), innerWidth - 40) + "px");
+  } else {
+    const w = Math.min(layout.fw, innerWidth - 16), h = Math.min(layout.fh, innerHeight - 16);
+    const x = layout.x === null ? innerWidth - w - 24 : Math.min(Math.max(layout.x, 8), innerWidth - w - 8);
+    const y = Math.min(Math.max(layout.y, 8), innerHeight - 80);
+    chat.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px`;
+  }
+}
+$("mode").onclick = () => { layout.mode = layout.mode === "dock" ? "float" : "dock"; applyLayout(); lsSet(KEY + ":chat", layout); };
+const grip = $("grip");
+grip.addEventListener("pointerdown", e => {
+  e.preventDefault(); grip.setPointerCapture(e.pointerId);
+  const move = ev => { layout.w = Math.min(Math.max(innerWidth - ev.clientX, 300), innerWidth - 40); chat.style.setProperty("--chat-w", layout.w + "px"); };
+  const up = () => { grip.removeEventListener("pointermove", move); grip.removeEventListener("pointerup", up); lsSet(KEY + ":chat", layout); };
+  grip.addEventListener("pointermove", move); grip.addEventListener("pointerup", up);
+});
+grip.addEventListener("keydown", e => {
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  layout.w += e.key === "ArrowLeft" ? 40 : -40; applyLayout(); lsSet(KEY + ":chat", layout);
+});
+const head = $("dhead");
+head.addEventListener("pointerdown", e => {
+  if (layout.mode !== "float" || e.target.closest("button")) return;
+  e.preventDefault(); head.setPointerCapture(e.pointerId);
+  const r = chat.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+  const move = ev => { layout.x = ev.clientX - dx; layout.y = ev.clientY - dy; applyLayout(); };
+  const up = () => { head.removeEventListener("pointermove", move); head.removeEventListener("pointerup", up); lsSet(KEY + ":chat", layout); };
+  head.addEventListener("pointermove", move); head.addEventListener("pointerup", up);
+});
+new ResizeObserver(() => {
+  if (layout.mode !== "float" || !chat.classList.contains("open")) return;
+  layout.fw = chat.offsetWidth; layout.fh = chat.offsetHeight; lsSet(KEY + ":chat", layout);
+}).observe(chat);
+addEventListener("resize", () => chat.classList.contains("open") && applyLayout());
+
+let sample = null, current = null, turns = [], busy = false, ctrl = null;
+const msgs = $("msgs");
+function brief(id) {
+  const f = findTask(id), t = f.task, s = f.sec;
+  const subs = t.subs.map(x => `- ${strip(x.text)}`).join("\n");
+  const decs = s.decisions.map(d => `${d.tag}: ${strip(d.title)}. ${strip(d.rec)}`).join("\n");
+  return `${CONTEXT}
+
+Section: ${s.num} (${s.title}), budget ${s.budget}.
+Decisions in this section:
+${decs}
+
+The question is about task ${id.toUpperCase()}: ${t.title} (${t.est}, ${t.ref || "no finding"}).
+How: ${strip(t.how)}
+Subtasks:
+${subs}`;
+}
+function addMsg(cls, text) { const d = document.createElement("div"); d.className = "msg " + cls; d.textContent = text; msgs.appendChild(d); msgs.scrollTop = msgs.scrollHeight; return d; }
+function openChat(id) {
+  const f = findTask(id); if (!f) return;
+  if (current !== id) { current = id; turns = []; msgs.innerHTML = ""; addMsg("hint", `Briefed on ${id.toUpperCase()}. Ask anything: why it matters, what the syntax means, what to watch for.`); }
+  $("dtitle").textContent = `Ask Claude · ${id.toUpperCase()}`;
+  $("dsub").textContent = f.task.title;
+  chat.classList.add("open"); applyLayout(); $("q").focus();
+}
+$("close").onclick = () => { if (ctrl) ctrl.abort(); chat.classList.remove("open"); };
+$("form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const box = $("q"), q = box.value.trim();
+  if (!q || busy || current === null) return;
+  if (!sample) { $("unavail").hidden = false; return; }
+  box.value = ""; addMsg("user", q);
+  turns.push({ role: "user", content: turns.length ? q : brief(current) + "\n\nHis question: " + q });
+  const out = addMsg("ai", "Thinking…"); busy = true; ctrl = new AbortController();
+  try {
+    const r = await sample(turns, { cache: false, signal: ctrl.signal, onText: ({ text }) => { out.textContent = text; msgs.scrollTop = msgs.scrollHeight; } });
+    out.textContent = r.text; turns.push({ role: "assistant", content: r.text });
+  } catch (err) {
+    turns.pop();
+    out.textContent = err && err.code === "not_granted" ? "Chat wasn't allowed in this view." :
+      err && err.code === "rate_limited" ? "Too many questions in a row. Wait a minute and ask again." :
+      err && err.code === "cancelled" ? "Stopped." : "Couldn't get an answer. Try again.";
+  } finally { busy = false; ctrl = null; }
+});
+(async () => { try { sample = await window.claude?.use("sample"); } catch (e) { sample = null; }
+  if (!sample) $("unavail").hidden = false; })();
+
+boot(); applyLayout();
+</script>

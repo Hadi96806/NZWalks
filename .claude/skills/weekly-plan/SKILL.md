@@ -124,16 +124,31 @@ Structure — two sections, each containing:
 The header carries an overall percentage and a sync indicator. The footer carries the three
 buckets from step 4 plus the drop order from step 6.
 
-**Every task card gets a plan button** (he asked for this 2026-10-14):
-- If the task already has a plan artifact, show **Open plan** linking it.
-- Otherwise show **Make a plan**, a link to
-  `claude://code/new?folder=<repo>&q=<prompt>`. That opens a new desktop Claude Code session.
-  The prompt asks it to use the `task-plan` skill on that task id and title, to rely on this
-  week's tracker as the weekly plan (so `task-plan` needn't ask), to build the plan the same way
-  as the Week 1 plan artifacts, and to file itself under the "NZWalks" sidebar group. The prompt
-  must not start with `/`. Add a **Copy prompt** fallback for when the link doesn't open the app.
-- Copy the mechanics from `docs/plans/week2-tracker.html` (`planPrompt`, `planUrl`). Republish
-  after the first publish so the prompt carries the tracker's own URL.
+**Every task card gets two buttons: Plan and Ask Claude** (he asked for this 2026-10-18).
+An artifact's sandbox blocks `claude://` links (he got "This content is blocked" on 2026-10-17),
+so a button can't start a session. The tracker declares `capabilities: {db: {}, user: {}, sample: {}}`.
+- **Plan** writes `plan-requests/<taskId>` = `{status: "pending", requestedAt}` into the tracker's
+  db. The **Planning session** (the `plan-queue` skill, run with `/loop`) picks it up, runs
+  `task-plan` on that task with this tracker as the weekly plan, adds the plan under the week's
+  Notion page, and writes `status: "done"` + `planUrl` back. The card turns into **Open plan** by
+  itself, with no republish. A heartbeat doc `plan-listener/status` lights the "Planning session
+  online" indicator at the top. **Copy prompt** stays as a fallback.
+- **Ask Claude** opens the resizable, dockable, floating `sample` chat from the plan artifacts,
+  briefed on that task (the card, its section's decisions, the week's context).
+- **Build every tracker from `.claude/skills/weekly-plan/tracker-template.html`**, not from
+  scratch and not from an old tracker. Copy it to `docs/plans/week<N>-tracker.html` and fill the
+  placeholders: `__WEEK__` (the number), `__EYEBROW__`, `__SUB__`, `__NOTES__` (the note cards in
+  the footer), `__DATA__` (the section/task/subtask array, same shape as Week 2's), `__CONTEXT__`
+  (the brief Ask Claude gets: the project, the week's tasks, "you cannot see his files"), and
+  `__TRACKER_URL__` (publish once, then fill it and republish, as before). The template holds the
+  Plan and Ask Claude buttons, the request queue, the Planning-session indicator and the resizable
+  chat. Declare `capabilities: {db: {}, user: {}, sample: {}}`.
+- **Register the tracker with the Planning session:** add a row (week, artifact URL, source file,
+  Notion week page id) to the "Active trackers" table in `.claude/skills/plan-queue/SKILL.md`.
+  One Planning session (`/loop Use the plan-queue skill`) serves every tracker, so nothing else
+  changes. A tracker missing from that table has Plan requests that wait forever.
+- Plans that exist before the tracker does are seeded as `done` requests with `ArtifactData`
+  (`plan-requests/<taskId>` = `{status: "done", planUrl, planName, requestedAt, note: ""}`).
 
 Then create the Notion **Week N** page under 14 weeks Program, if it doesn't exist. Give it one
 intro line linking the tracker, and an `## Interactive plans` list. Each plan made from a Make a
