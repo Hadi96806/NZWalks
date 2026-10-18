@@ -135,7 +135,7 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 **Files:** every controller; `NZWalks.API/Program.cs` (no `AddAuthorization` policies, no `FallbackPolicy`)
 **Current behavior:**
 - Authorization is opt-in: an action with no `[Authorize]` is anonymous. Finding #8 existed only because someone forgot the attribute.
-- The role split is written as attribute strings on 11 actions across three controllers. Walks, Images and Users use `RoleNames` constants; `RegionsController` still uses the literals `"Reader,Admin"` / `"Writer,Admin"`.
+- The role split is written as attribute strings on 12 actions across three controllers. Walks, Images and Users use `RoleNames` constants; `RegionsController` still uses the literals `"Reader,Admin"` / `"Writer,Admin"`.
 - Reads require `Reader` or `Admin`, so a user holding only `Writer` can change walks and regions but not read them. Rare today (Register always grants `Reader`, and RevokeRole refuses to remove a user's last role) but possible if an Admin revokes `Reader` from a Writer.
 **Why it matters:** the next controller ships open unless its author remembers; a typo in a literal role string silently locks everyone out of that action; changing who may read means editing every read action.
 **Suggested direction:** set `FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build()` so endpoints fail closed, with `[AllowAnonymous]` on Register and Login. Define named policies (`CanRead` = Reader/Writer/Admin, `CanWrite` = Writer/Admin) in `AddAuthorization` and use `[Authorize(Policy = …)]`. Switch `RegionsController` to the constants or the policies.
@@ -155,6 +155,12 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 - `dotnet build` reports 36 warnings: 35 × CS8618 (non-nullable properties not initialised — mostly DTOs and domain models) and 1 × CS8602 (possible null dereference). The plans have been holding the line at "no more than 36".
 **Why it matters:** Week 2 adds hooks that run `dotnet format` and analyzers after every edit. Without a committed style, the first run reformats whole files, and every later diff mixes real changes with formatting churn; without fixed line endings, the same file can flip between machines. A hook that fails on warnings would fail on all 36 from day one.
 **Suggested direction:** before wiring the hooks, add a `.editorconfig` that matches the current code style and a `.gitattributes` (`* text=auto`, `*.cs eol=crlf`), run `dotnet format` once and commit that as a formatting-only commit. Then either fix the 36 warnings (`required` members or `= default!`/`string.Empty` on DTOs) or make the hook fail only on *new* warnings. See [ADR-0008](./decisions.md#adr-0008--week-2-hooks-what-runs-when-and-what-fails).
+
+### 21. Nothing enforces that `[AllowAnonymous]` stays on Register and Login only — **OPEN (Low)**
+**Files:** `NZWalks.API/Controllers/AuthController.cs`, `NZWalks.API/Program.cs` (the fallback policy)
+**Current behavior:** the fail-closed rule ([ADR-0009](./decisions.md#adr-0009--fail-closed-authorization-and-named-policies)) makes every endpoint require a login unless it carries `[AllowAnonymous]`, and only `Register` and `Login` do. Nothing in the code or the build stops someone adding a second `[AllowAnonymous]`, or putting it on a whole controller; the rule is held by convention, by `CLAUDE.md`, and by the reviewer subagent (ADR-0010).
+**Why it matters:** an unintended public endpoint is the exact failure the fallback policy exists to prevent (finding #8, finding #18). A review catches it only if the review happens and the reviewer notices.
+**Suggested direction:** once a test project exists (Week 3), add a test that lists every endpoint carrying `[AllowAnonymous]` metadata and fails unless the set is exactly `Register` and `Login`. Raised by the reviewer's dry run on the A3 commit and recorded here on the user's confirmation, 2026-10-18.
 
 ## Summary table
 
@@ -180,3 +186,4 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 | 18 | Security | Medium — **resolved 2026-10-15** | all controllers, `Program.cs` |
 | 19 | Security | Medium | `Validators/ImageUploadDtoValidator.cs`, `Respositries/LocalImageRepository.cs`, `Program.cs` |
 | 20 | Tooling | Medium — **resolved 2026-10-15** (style baseline A1, 0 warnings A2) | repo root, `Models/DTO/*` |
+| 21 | Security | Low | `Controllers/AuthController.cs`, `Program.cs` |

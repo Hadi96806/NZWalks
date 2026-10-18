@@ -344,7 +344,7 @@ the only key available there is the client IP.
 
 ## ADR-0007 — Access policy for Walks and Images
 
-**Status:** Accepted · **Date:** 2026-10-13 (tracker D6)
+**Status:** Accepted · **Date:** 2026-10-13 (tracker D6) · **Amended by [ADR-0009](#adr-0009--fail-closed-authorization-and-named-policies):** the rules below are now the named policies `CanRead` and `CanWrite`; `CanRead` includes `Writer`, so a Writer-only user can read; and authorization is no longer opt-in (a fallback policy requires a login). The text below is the 2026-10-13 decision as written.
 
 ### Context
 
@@ -460,7 +460,7 @@ baseline is now empty**, so every warning fails the Stop hook. Re-run
 Authorization was opt-in: an action with no `[Authorize]` was anonymous, and finding #8 (Walks and
 Images open to the world) happened only because someone forgot the attribute. ADR-0007 closed that
 hole by adding attributes, and explicitly left the structural fix open. The role rules were also
-repeated as strings on 11 actions (Regions used the literals `"Reader,Admin"` and `"Writer,Admin"`),
+repeated as strings on 12 actions (Regions used the literals `"Reader,Admin"` and `"Writer,Admin"`),
 so a typo silently locked everyone out of one action, and changing who may read meant editing every
 read action.
 

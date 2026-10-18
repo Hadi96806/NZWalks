@@ -28,6 +28,7 @@ Both halves are documented below in the exact order they appear in the file, fol
 | 14 | `AddIdentityCore<IdentityUser>().AddRoles<IdentityRole>().AddTokenProvider<DataProtectorTokenProvider<IdentityUser>>("NZWalks").AddEntityFrameworkStores<NZWalksAuthDbContext>().AddSignInManager().AddDefaultTokenProviders()` | Registers ASP.NET Core Identity (users + roles), backed by `NZWalksAuthDbContext`. `AddSignInManager()` is only for the lockout-aware `CheckPasswordSignInAsync` in Login — no cookie scheme is registered | Needed before `AddAuthentication`, since the JWT bearer scheme validates against Identity-issued claims |
 | 15 | `Configure<IdentityOptions>(...)` | Password policy: non-alphanumeric required, digit required, min length 8, min unique chars 1. Lockout: 5 consecutive failures lock the account for 5 minutes, enabled for new users | Password rules govern `UserManager.CreateAsync` in Register; lockout governs `CheckPasswordSignInAsync` in Login (ADR-0006) |
 | 16 | `AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(...)` | Sets JWT Bearer as the default auth scheme; configures `TokenValidationParameters` (validate issuer/audience/lifetime/signing key, using `Jwt:Issuer`/`Jwt:Audience`/`Jwt:Key`; HS256 only; `ClockSkew = TimeSpan.Zero`) | Depends on Identity being registered above (ADR-0005) |
+| 16a | `AddAuthorization(options => …)` | Named policies `CanRead` (Reader, Writer, Admin), `CanWrite` (Writer, Admin) and `CanAdmin` (Admin), plus a `FallbackPolicy` requiring an authenticated user, so an endpoint with no attribute fails closed (ADR-0009) | Names live in `Constants/PolicyNames.cs`; `[AllowAnonymous]` only on Register and Login |
 | 17 | `AddRateLimiter(...)` | Global fixed window 100 req/min per client IP; named policy `RateLimitPolicies.Auth` 5 req/min per IP; `RejectionStatusCode = 429`; `OnRejected` sets `Retry-After`, logs a warning and writes a problem+json body through `IProblemDetailsService` | Registered here, applied by `UseRateLimiter()` in the pipeline (ADR-0006) |
 
 **Note:** `Jwt:ExpiryMinutes` (15) is read by `TokenRepository` for the token lifetime, and the app refuses to start if it is missing or not positive (finding #11, resolved).
@@ -46,7 +47,7 @@ In exact order:
 | 4a | `UseRouting()` | Matches the request to an endpoint, so later middleware can read its metadata | Explicit (instead of implicit at the start) so it sits after static files and before the rate limiter, which needs the matched endpoint's `[EnableRateLimiting]` |
 | 4b | `UseRateLimiter()` | Applies the global limiter and any named policy on the endpoint; rejects with 429 | After static files (image downloads aren't counted) and **before** authentication, so a flood is turned away before any JWT validation work |
 | 5 | `UseAuthentication()` | Reads the `Authorization: Bearer <token>` header, validates it against the `TokenValidationParameters` configured above, and populates `HttpContext.User` if valid | Must run **before** `UseAuthorization` — authorization needs `HttpContext.User` to already be populated to evaluate role checks |
-| 6 | `UseAuthorization()` | Evaluates `[Authorize]` / `[Authorize(Roles=...)]` attributes on the matched endpoint against `HttpContext.User` | Must run **after** `UseAuthentication` and **before** the request reaches a controller action |
+| 6 | `UseAuthorization()` | Evaluates the matched endpoint's `[Authorize(Policy = …)]` / `[AllowAnonymous]` metadata, or the fallback policy (authenticated user) when it has none, against `HttpContext.User` | Must run **after** `UseAuthentication` and **before** the request reaches a controller action |
 | 7 | `MapControllers()` | Maps controller actions as endpoints (matched earlier by `UseRouting`) and executes the selected action | Last — by this point the request has passed through exception wrapping, HTTPS enforcement, static file short-circuit (if applicable), rate limiting, authentication, and authorization |
 | 8 | `Run()` | Starts the Kestrel server | — |
 
@@ -79,7 +80,7 @@ sequenceDiagram
     RL->>AN: permit granted
     AN->>AN: validate JWT signature, issuer, audience, lifetime
     AN->>AZ: HttpContext.User populated
-    AZ->>AZ: check [Authorize(Roles = Writer,Admin)] against the token's role claims
+    AZ->>AZ: check [Authorize(Policy = CanWrite)] (Writer or Admin) against the token's role claims
     AZ->>R: authorized, run WalksController.Create
     R->>R: FluentValidation validates AddWalkDto (invalid → 400 ProblemDetails)
     R->>DB: IWalkRepository.CreateAsync(walk)
@@ -103,7 +104,7 @@ sequenceDiagram
 4. **`UseStaticFiles`** checks whether the request path starts with `/Images`. It doesn't (`/api/Walks`), so this middleware is a no-op pass-through.
 4a. **`UseRouting`** matches the request to `WalksController.Create`; **`UseRateLimiter`** takes a permit from this IP's global 100/min window (the action has no named policy). If the window is used up, the request ends here with a 429 and `Retry-After`.
 5. **`UseAuthentication`** reads the `Authorization` header, validates the JWT (issuer, audience, lifetime, signing key against `Jwt:Key`), and — if valid — populates `HttpContext.User` with the claims embedded in the token (email + role, per `TokenRepository`).
-6. **`UseAuthorization`** checks the endpoint's `[Authorize(Roles = "Writer,Admin")]` against `HttpContext.User`: no valid token → 401, a token without Writer or Admin → 403 (ADR-0007).
+6. **`UseAuthorization`** checks the endpoint's `[Authorize(Policy = PolicyNames.CanWrite)]` (Writer or Admin) against `HttpContext.User`: no valid token → 401, a token without Writer or Admin → 403 (ADR-0007, ADR-0009). An endpoint with no attribute at all gets the fallback policy, so it is 401 without a token too.
 7. **`MapControllers`** runs `WalksController.Create`. FluentValidation's auto-validation (`AddWalkDtoValidator`) runs during model binding and records any failures in `ModelState`; `[ApiController]`'s built-in filter then short-circuits with a `400` `ValidationProblemDetails` (`application/problem+json`) if the `AddWalkDto` is invalid.
 8. The controller calls `IWalkRepository.CreateAsync`, which `SQLWalkRepository` fulfills against `NZWalksDbContext`.
 9. `IMapper` maps the resulting `Walk` entity to a `WalkDto`, and the controller returns `201 Created`.
