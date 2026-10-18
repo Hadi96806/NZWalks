@@ -3,3 +3,6 @@
 
 # A1: dotnet format whitespace over the solution (no code changes)
 99defd309cb6ec3dabdb40992ad1fdb7caea4658
+
+# B3: rename Respositries to Repositories and Pagination Result to PaginationResult (renames only, no behaviour change)
+039a75d12eba65c0d36dc860c6b1cae1a4c77097
