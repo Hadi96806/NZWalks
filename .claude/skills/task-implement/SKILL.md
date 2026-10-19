@@ -64,7 +64,7 @@ For each change, in this order:
 - List the plan's **Verify** steps for this subtask as a checklist he runs in Visual Studio.
   Visual Studio has his real user-secrets; a session-launched app may not.
 - If you run checks yourself, show the real output, not a summary.
-- When he confirms the checks pass, tick the subtask in **both** copies: the `- [ ] Done` line in
-  the local plan file, and the to-do on the plan's Notion page (Claude Mastery → 14 weeks
-  Program → Week N).
+- Don't tick anything here. A tick means "reviewed and on the remote", so ticking (the plan file,
+  the plan's artifact page and the week tracker) belongs to the `task-close` skill, after review,
+  commit and push. When he confirms the checks pass, tell him to run `/task-close <plan file>`.
 - End by naming the next subtask in the plan's order. Don't start it.

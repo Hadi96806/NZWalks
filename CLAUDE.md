@@ -21,6 +21,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Planning
 
 - When planning any change in this project (including plan mode), use the `task-plan` skill.
+- When a task or its subtasks are finished, use the `task-close` skill: verify, review each commit with the read-only reviewer and get the user's OK, commit, push only with the user's approval, and tick the plan, its artifact page and the week tracker only after the push succeeded.
 
 ## Review before every commit
 
