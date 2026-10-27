@@ -37,6 +37,7 @@ ones that are inconvenient. An entry that lists only upsides is not finished.
 | [0008](#adr-0008--week-2-hooks-what-runs-when-and-what-fails) | Week 2 hooks: what runs when, and what fails | Accepted | 2026-10-15 |
 | [0009](#adr-0009--fail-closed-authorization-and-named-policies) | Fail-closed authorization and named policies | Accepted | 2026-10-15 |
 | [0010](#adr-0010--read-only-reviewer-subagent-and-the-commit-gate) | Read-only reviewer subagent and the commit gate | Accepted | 2026-10-18 |
+| [0013](#adr-0013--target-net-10-and-the-package-versions-that-go-with-it) | Target .NET 10 and the package versions that go with it | Accepted | 2026-10-26 |
 
 ---
 
@@ -647,3 +648,53 @@ the `.state/` folder first). Two reviews of one tool each finding real gaps in t
 above say "heuristic": it is a guard against forgetting, and further parsing edge cases are accepted rather
 than chased. A third review (`a2fcba26…`) was PASS with one Medium (a false block on `git commit -F - <<'EOF'`
 that the heredoc fix introduced) and four Lows; they are recorded as accepted limits above.
+
+---
+
+## ADR-0013 — Target .NET 10 and the package versions that go with it
+
+**Status:** Accepted · **Date:** 2026-10-26 · Not a Week tracker task. The Week 3 plan reserves ADR-0011 (A5s3) and ADR-0012 (B4s2), so this takes the next free number.
+
+### Context
+
+The API targeted `net8.0` on 8.0.x ASP.NET Core packages and 9.0.7 EF Core packages. .NET 8 support ends on 10 November 2026. The SDK on this machine is 10.0.303 and the runtimes include Microsoft.NETCore.App 10.0.11. SDK 10 already built the project, but for `net8.0`, so it ran on the installed .NET 8 runtime (8.0.33). The change makes the target framework and its packages .NET 10.
+
+### Options
+
+1. **Stay on `net8.0` until support ends**, then move in a rush in November.
+2. **Move to `net10.0` now** and take each package to a release that targets it, using the 10.x line for Microsoft.* and EF Core (chosen).
+3. **Move only the target framework** and keep the 8.x and 9.x packages. Rejected: EF Core 9 and the 8.x ASP.NET Core packages target `net8.0` only, so the project would run on a framework its packages do not support.
+
+### Decision
+
+**Option 2.** `TargetFramework` is `net10.0` in `NZWalks.API.csproj`. Packages moved as follows (the old version is in brackets):
+
+- Microsoft.AspNetCore.Authentication.JwtBearer and Microsoft.AspNetCore.Identity.EntityFrameworkCore `10.0.14` (8.0.19).
+- Microsoft.EntityFrameworkCore, Microsoft.EntityFrameworkCore.SqlServer and Microsoft.EntityFrameworkCore.Tools `10.0.14` (9.0.7). The `dotnet-ef` global tool is `10.0.14` to match.
+- Asp.Versioning.Mvc and Asp.Versioning.Mvc.ApiExplorer `10.2.1` (8.1.0). The 10.x line, which has a net10.0 target.
+- Swashbuckle.AspNetCore `10.3.1` (6.6.2). Its net10.0 target. This is a major version, and its generator now uses Microsoft.OpenApi 2.x.
+- Microsoft.IdentityModel.Protocols.OpenIdConnect, Microsoft.IdentityModel.Tokens and System.IdentityModel.Tokens.Jwt `8.23.0` (8.14.0). Latest 8.x, with a net10.0 target.
+- Serilog `4.4.0` (4.3.0) and Serilog.AspNetCore `10.0.0` (9.0.0), both with a net10.0 target.
+- Serilog.Sinks.Console `6.1.1` (6.0.0). Latest release. It targets net6.0, net8.0 and netstandard2.0, so it runs on .NET 10 but has no net10.0 target of its own.
+- AutoMapper `15.1.3` (15.1.1). A patch release that targets netstandard2.0 and net8/9. AutoMapper 16 is a major version that is not needed for the framework change, so it was not taken.
+- FluentValidation.AspNetCore stays `11.3.1`, which is the latest release. It targets net6.0 and runs on .NET 10.
+- Serilog.Sinks.File stays `7.0.0`, which is the latest stable release.
+- System.Security.Cryptography.Pkcs is a **new direct reference at `10.0.14`**. Without it, the transitive `9.0.11` brings NU1902 (moderate) and NU1903 (high) advisories, and the build would have warnings.
+
+Code changes that go with the upgrade:
+
+- `ConfigureSwaggerOptions.cs` and `Program.cs` use `Microsoft.OpenApi` instead of `Microsoft.OpenApi.Models`. The security requirement is built as `OpenApiSecurityRequirement` with an `OpenApiSecuritySchemeReference` for the `Bearer` scheme, with an empty scope list, as before.
+- `Program.cs` adds `.AddMvc()` after `AddApiVersioning(...)`, which Asp.Versioning 10 requires for controller APIs (analyzer AV0013). The versioning options are unchanged.
+
+### Consequences
+
+- **The build is clean**: 0 errors and 0 warnings on `net10.0`, the same bar as before. The format check passes.
+- **The Swagger documents are the same, apart from the generator's header and a new top-level `tags` list.** For v1 and v2, the paths, response codes, schemas and security definition match the net8 build of HEAD. The differences are `openapi` `3.0.1` to `3.0.4` and a new top-level `tags` list.
+- **The `System.Security.Cryptography.Pkcs` pin is a direct reference.** It is needed while the transitive chain still resolves 9.0.11. Remove it once a newer chain brings in 10.x on its own.
+- **The project targets a supported framework again**: .NET 8 support ends 10 November 2026; .NET 10 is the current long-term-support release.
+- **Stale text in plans**: `docs/plans/test-project-skeleton.md`, `docs/plans/test-project-skeleton.html`, `docs/plans/test-project-skeleton.parts.html`, `docs/plans/week3-data.js`, `docs/plans/week3-tracker.html` and `docs/plans/week3-learning.html` still say `net8.0`, `sdk:8.0` or `aspnet:8.0` (the test project, the container images and CI). They must be revised before Week 3 starts, because a .NET 8 SDK cannot build a net10.0 project. CLAUDE.md, `docs/00`, `docs/01` and `docs/02` are updated in this commit.
+
+### Verified 2026-10-26
+
+On SDK 10.0.303 with runtime 10.0.11: build 0 errors and 0 warnings; `dotnet format whitespace --verify-no-changes` exit 0; migrations list for both contexts with no pending model changes; the API starts in the http profile with no configuration error; Swagger v1 and v2 return 200 and match the net8 baseline except as noted above; the authorization matrix gives 401, 200 and 403 as ADR-0009 expects; an empty-body POST to `/api/Auth/Register` gives 400 `application/problem+json` with the field names under `errors` (the validation path after `AddMvc()`); the JWT is HS256, carries `sub`/`jti`/`iat`, and has `exp - iat` = 900 seconds; the sixth login in a minute gets 429 with `Retry-After: 60`; and Serilog writes new lines.
+

@@ -2,7 +2,7 @@
 
 This is the reference baseline for the NZWalks ASP.NET Core Web API, written before further feature work so that upcoming changes build on an accurate, agreed-upon understanding of the current codebase — not an idealized version of it.
 
-**What NZWalks is:** an ASP.NET Core 8 Web API for browsing walking trails ("Walks") grouped by geographic "Regions" and difficulty level, with JWT-based authentication, Identity-backed role authorization (Reader/Writer/Admin), image upload for regions, and versioned Region endpoints (v1/v2).
+**What NZWalks is:** an ASP.NET Core 10 Web API for browsing walking trails ("Walks") grouped by geographic "Regions" and difficulty level, with JWT-based authentication, Identity-backed role authorization (Reader/Writer/Admin), image upload for regions, and versioned Region endpoints (v1/v2).
 
 ## How to read this doc set
 

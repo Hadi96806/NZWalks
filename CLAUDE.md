@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-`NZWalks` — an ASP.NET Core 8 Web API (single project, `NZWalks/NZWalks.API`) exposing Regions, Walks, Images, and JWT auth over SQL Server. Solution file: `NZWalks/NZWalks.sln`.
+`NZWalks` — an ASP.NET Core 10 Web API (single project, `NZWalks/NZWalks.API`) exposing Regions, Walks, Images, and JWT auth over SQL Server. Solution file: `NZWalks/NZWalks.sln`.
 
 ## Docs
 
@@ -47,11 +47,11 @@ dotnet run --project NZWalks.API --launch-profile http   # http only → http://
 
 There is no test project, so `dotnet test` has nothing to run. Layout is enforced by `.editorconfig` (whitespace and layout rules only — no C# style rules) and `.gitattributes` (LF in the repo, CRLF in the working copy); check it with `dotnet format whitespace NZWalks/NZWalks.sln --verify-no-changes`. A hook formats each `.cs` file Claude edits.
 
-The installed SDK is 10.x while the project targets `net8.0`; builds work via roll-forward, but do not "upgrade" the TFM without being asked.
+The installed SDK is 10.x and the project targets `net10.0` (ADR-0013). Do not change the TFM without being asked.
 
 ### EF Core migrations
 
-`dotnet-ef` is **not** installed here — install it first: `dotnet tool install --global dotnet-ef`.
+`dotnet-ef` must be **10.x** to match the EF Core 10 packages (ADR-0013). Install it with `dotnet tool install --global dotnet-ef --version 10.*`, or `dotnet tool update --global dotnet-ef --version 10.*` if an older one is installed.
 
 There are **two DbContexts with separate databases**, so every migration command must name the context and (for auth) the output directory:
 
@@ -82,7 +82,7 @@ Everything is wired in `Program.cs`; there is no extensions/startup-module layer
 
 - **Auth**: JWT bearer, config under `Jwt:` (`Issuer`/`Audience`/`ExpiryMinutes` in `appsettings.json`, `Jwt:Key` in user-secrets). Tokens live 15 minutes (`Jwt:ExpiryMinutes`), `ClockSkew` is zero, HS256 only, and carry `sub`/`jti`/`iat`. `AuthController` registers/logs in via `UserManager<IdentityUser>`; **Register always assigns Reader and rejects a body containing `roles`** — it never takes roles from the client (ADR-0004). Login only succeeds if the user has at least one role. Roles are granted/revoked only by an Admin through `UsersController` (`POST api/Users/GrantRole` / `RevokeRole`, class-level `[Authorize(Policy = PolicyNames.CanAdmin)]`; role names live in `Constants/RoleNames.cs`). The first Admin is inserted via SQL. A role change shows up at the user's next login. **Authorization fails closed (ADR-0009):** a `FallbackPolicy` in `Program.cs` requires a logged-in user, so an action with no attribute returns 401, and only `Register` and `Login` carry `[AllowAnonymous]` (on the actions, not the class). Access rules are the named policies in `Constants/PolicyNames.cs`: `CanRead` (Reader, Writer, Admin), `CanWrite` (Writer, Admin) and `CanAdmin` (Admin). Put `[Authorize(Policy = PolicyNames.CanRead)]` / `CanWrite` on every Regions, Walks and Images action, and `CanAdmin` on `UsersController`; don't write role strings in new attributes, and don't rely on the fallback alone for a write action, since it only means "logged in". Image downloads under `/Images` stay public (static files, ADR-0007).
 - **Validation**: FluentValidation auto-validation (`Program.cs`) runs the DTO's validator before the action; failures land in `ModelState` and `[ApiController]` returns a 400 `ValidationProblemDetails`. A new request DTO — body or `[FromQuery]` class — needs a validator in `Validators/`, or it is accepted unchecked. Rules must be synchronous (no DB lookups; reference existence is checked in the repository). Don't hand-check `ModelState` in actions. Every 400 with field errors uses the same `errors` shape, including `ValidationException` and `InvalidReferenceException`, which `ExceptionHandlerMiddleware` maps.
-- **Rate limiting** (ADR-0006): built-in .NET 8 limiter, wired in `Program.cs`. Global fixed window **100 req/min per client IP**; named policy `RateLimitPolicies.Auth` (`Constants/RateLimitPolicies.cs`) **5 req/min per IP** via `[EnableRateLimiting]` on the whole `AuthController` — login and register share it and also count against the global 100. `UseRouting()` then `UseRateLimiter()` sit after `UseStaticFiles` and before `UseAuthentication`. Rejections are 429 problem+json with `Retry-After`, logged as warnings. Counters are in memory (reset on restart), and in development every local tool shares `::1` — expect to hit the 5/min auth limit while testing. Per-IP keys break behind a proxy: forwarded headers must be configured before deploying (finding #14).
+- **Rate limiting** (ADR-0006): built-in ASP.NET Core limiter, wired in `Program.cs`. Global fixed window **100 req/min per client IP**; named policy `RateLimitPolicies.Auth` (`Constants/RateLimitPolicies.cs`) **5 req/min per IP** via `[EnableRateLimiting]` on the whole `AuthController` — login and register share it and also count against the global 100. `UseRouting()` then `UseRateLimiter()` sit after `UseStaticFiles` and before `UseAuthentication`. Rejections are 429 problem+json with `Retry-After`, logged as warnings. Counters are in memory (reset on restart), and in development every local tool shares `::1` — expect to hit the 5/min auth limit while testing. Per-IP keys break behind a proxy: forwarded headers must be configured before deploying (finding #14).
 - **Account lockout**: Identity lockout, 5 consecutive failed logins lock the account for 5 minutes (`Configure<IdentityOptions>`). Login uses `SignInManager.CheckPasswordSignInAsync(..., lockoutOnFailure: true)` (`.AddSignInManager()`, no cookies). A locked account gets the same generic 401 as a wrong password — never reveal lockout in the response; it is logged instead.
 - **Errors**: `Middlewares/ExceptionHandlerMiddleware` catches everything, logs it, and returns a generic 500 payload. Registered before `UseHttpsRedirection`.
 - **Logging**: Serilog configured inline in `Program.cs` — console + rolling daily file at `NZWalks.API/Logs/NZWalksLog.txt` (gitignored output; the `Logs\` folder is kept via the csproj `<Folder>` item).

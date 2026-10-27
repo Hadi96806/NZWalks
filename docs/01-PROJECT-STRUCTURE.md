@@ -8,7 +8,7 @@ This document maps the current folder/file structure of the NZWalks solution exa
 NZ Walks/                              (git repo root)
 └── NZWalks/                           (solution folder)
     ├── NZWalks.sln
-    └── NZWalks.API/                   (the only project — net8.0 Web API)
+    └── NZWalks.API/                   (the only project — net10.0 Web API)
 ```
 
 There is currently **one project** in the solution. There is no separate `NZWalks.Domain`, `NZWalks.Data`, or `NZWalks.Repository` class library — every concern (controllers, EF Core contexts, repositories, DTOs, mapping profiles, middleware) lives inside `NZWalks.API`. This is a deliberate callout for scaling: see finding #7 in the tech-debt doc.
