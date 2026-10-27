@@ -134,6 +134,8 @@ Option 3 was rejected as a non-answer: deferring the decision is what leaves Wee
   statements generate an `internal` `Program`, which a test assembly cannot name as the generic
   argument to `WebApplicationFactory<Program>`. Without it the decision is unimplementable, and
   Week 3 opens with a compiler error whose cause is not obvious. Tracked as Week 1 subtask B5s2.
+  **Done:** `public partial class Program { }` is at the end of `Program.cs` (checked 2026-10-19), so
+  `WebApplicationFactory<Program>` compiles.
 
 ---
 
