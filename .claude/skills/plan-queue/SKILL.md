@@ -26,6 +26,7 @@ need restarting, because each tick re-reads this file.
 | Week | Tracker artifact | Source file | Notion week page |
 |---|---|---|---|
 | 2 | `https://claude.ai/artifact/XHigj6tKJTftQKHdCkYbeh` | `docs/plans/week2-tracker.html` | `3f962584db328128829cfa63cf7ea5c6` |
+| 3 | `https://claude.ai/artifact/X8kL8km3yYQE12YBXZ38Vz` | `docs/plans/week3-tracker.html` (built by `docs/plans/week3-data.js`) | `3fe62584db32818a9eb2f28481e03ac5` |
 
 **The `weekly-plan` skill adds a row here for every tracker it builds** (Step 7). Remove a row when
 a week is finished so idle ticks stay cheap. Week 1's tracker predates the Plan buttons and is not

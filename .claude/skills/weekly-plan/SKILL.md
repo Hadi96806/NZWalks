@@ -24,7 +24,8 @@ scheduled" is worth the whole session.
 | Conventions | `CLAUDE.md` at repo root |
 | Week 1 tracker | `https://claude.ai/artifact/UcgFcrcwRmYXsvadtbsi9Z` |
 | Week 2 tracker | `https://claude.ai/artifact/XHigj6tKJTftQKHdCkYbeh` (source `docs/plans/week2-tracker.html`; copy it for later weeks) |
-| Notion week pages | under "14 weeks Program" `3f062584db32817f8ab9ead496f2d755`: Week 1 `3f062584db32815e917fcbbdb3ceadeb`, Week 2 `3f962584db328128829cfa63cf7ea5c6` |
+| Week 3 tracker | `https://claude.ai/artifact/X8kL8km3yYQE12YBXZ38Vz` (source `docs/plans/week3-tracker.html`, generated from `tracker-template.html` by `docs/plans/week3-data.js`: edit the data file and rerun `node`, then republish) |
+| Notion week pages | under "14 weeks Program" `3f062584db32817f8ab9ead496f2d755`: Week 1 `3f062584db32815e917fcbbdb3ceadeb`, Week 2 `3f962584db328128829cfa63cf7ea5c6`, Week 3 `3fe62584db32818a9eb2f28481e03ac5` |
 
 Budget is **5 hours per week**. Treat that as a hard constraint, not an aspiration — the plan's
 job is to fit, and to say plainly when the week as written does not.
