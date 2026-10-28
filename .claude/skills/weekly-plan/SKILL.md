@@ -18,7 +18,7 @@ scheduled" is worth the whole session.
 | Thing | Where |
 |---|---|
 | Notion roadmap | page id `3af62584db3280278821fe2480b8d8d3` ("Claude Mastery") |
-| Findings punch list | `docs/03-FINDINGS-AND-TECH-DEBT.md` (findings numbered #1–#21) |
+| Findings punch list | `docs/03-FINDINGS-AND-TECH-DEBT.md` (findings numbered #1–#25) |
 | Architecture baseline | `docs/00-OVERVIEW.md` through `docs/04-appendix-glossary.md` |
 | Decision log | `docs/decisions.md` |
 | Conventions | `CLAUDE.md` at repo root |

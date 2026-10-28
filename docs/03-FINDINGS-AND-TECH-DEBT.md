@@ -164,6 +164,30 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 **Why it matters:** an unintended public endpoint is the exact failure the fallback policy exists to prevent (finding #8, finding #18). A review catches it only if the review happens and the reviewer notices.
 **Suggested direction:** once a test project exists (Week 3), add a test that lists every endpoint carrying `[AllowAnonymous]` metadata and fails unless the set is exactly `Register` and `Login`. Raised by the reviewer's dry run on the A3 commit and recorded here on the user's confirmation, 2026-10-18.
 
+### 22. The Week 3 plan files still say .NET 8 — **OPEN (Medium)**
+**Files:** `docs/plans/week3-data.js`, `docs/plans/week3-tracker.html`, `docs/plans/week3-learning.html`, `docs/plans/test-project-skeleton.md`, `docs/plans/test-project-skeleton.html` and `docs/plans/test-project-skeleton.parts.html` (all local, not versioned; the same six ADR-0013 lists)
+**Current behavior:** the API targets `net10.0` ([ADR-0013](./decisions.md#adr-0013--target-net-10-and-the-package-versions-that-go-with-it)), but these six plan files still reference `net8.0`, `sdk:8.0`, `aspnet:8.0` or ".NET 8". ADR-0013 notes only that they "must be revised before Week 3 starts", with no tracked item and no owner.
+**Why it matters:** a Dockerfile or CI job written from them would use .NET 8 images, and a .NET 8 SDK cannot build a `net10.0` project, so the Week 3 container and pipeline work would fail at its first build.
+**Suggested direction:** revise all six files (and the Dockerfile and CI references they carry) to `net10.0`, `sdk:10.0` and `aspnet:10.0` before Week 3 starts, and republish the tracker. Raised by the reviewer's dry run on the migration commit and recorded here on the user's confirmation, 2026-10-28.
+
+### 23. AutoMapper 15 needs a commercial licence key in production — **OPEN (Medium)**
+**Files:** `NZWalks.API/NZWalks.API.csproj` (`AutoMapper` 15.1.3), `NZWalks.API/Program.cs` (`AddAutoMapper`)
+**Current behavior:** on every mapped request the app logs a warning that there is no valid licence key for AutoMapper (Lucky Penny Software), that this is allowed for development and testing, and that a licensed version is required in production. No key is configured.
+**Why it matters:** fine today, but the Week 4 deployment is production use. Left alone, the deploy either breaks the licence terms or the warning is silenced without a decision.
+**Suggested direction:** decide before the Week 4 deploy: obtain and configure a licence key (kept in secrets, not in the repo), pin a version that predates the licence, or replace AutoMapper with hand-written mapping. Record the choice as an ADR. Found in the log during the net10 smoke test and recorded on the user's confirmation, 2026-10-28.
+
+### 24. The Swagger Authorize box needs the user to type `Bearer ` — **OPEN (Low)**
+**Files:** `NZWalks.API/Program.cs` (`AddSecurityDefinition`), `docs/02-MIDDLEWARE-PIPELINE.md` (the `AddSwaggerGen` row)
+**Current behavior:** the scheme is `SecuritySchemeType.ApiKey` with `Name = "Authorization"`, so the Authorize button sends exactly what is typed; the user must enter `Bearer <token>` including the prefix. The doc row says Swagger "can send `Authorization: Bearer <token>`", which is only true if the prefix is typed. Existing behaviour, not caused by the net10 migration.
+**Why it matters:** a token pasted without the prefix gives a 401 that looks like a broken login.
+**Suggested direction:** switch the scheme to `SecuritySchemeType.Http` with `Scheme = "bearer"` and `BearerFormat = "JWT"` so the UI adds the prefix (verify the generated document and an authorised call), or correct the doc wording. Raised by the reviewer and recorded on the user's confirmation, 2026-10-28.
+
+### 25. Walks paging has no stable order unless a sort is requested — **OPEN (Low)**
+**Files:** `NZWalks.API/Repositories/SQLWalkRepository.cs` (`GetAllAsync`)
+**Current behavior:** `OrderBy` is applied only when `sortBy` is `Name` or `Length`; otherwise the query runs `Skip`/`Take` with no ordering, and EF Core logs a warning that results may be unpredictable. Equal `Name` or `Length` values also have no tie-break.
+**Why it matters:** SQL Server gives no ordering guarantee without an `ORDER BY`, so the same page can return different walks, or a walk can appear on two pages or none, as data changes.
+**Suggested direction:** always apply a stable order, for example the requested sort then `Id` as a tie-break, before `Skip`/`Take`. Found in the log during the net10 smoke test and recorded on the user's confirmation, 2026-10-28.
+
 ## Summary table
 
 | # | Category | Severity | File(s) |
@@ -189,3 +213,7 @@ This is a punch list for upcoming work, not a changelog. Entries that have since
 | 19 | Security | Medium | `Validators/ImageUploadDtoValidator.cs`, `Repositories/LocalImageRepository.cs`, `Program.cs` |
 | 20 | Tooling | Medium — **resolved 2026-10-15** (style baseline A1, 0 warnings A2) | repo root, `Models/DTO/*` |
 | 21 | Security | Low | `Controllers/AuthController.cs`, `Program.cs` |
+| 22 | Docs/Tooling | Medium (blocks the Week 3 container and CI) | `docs/plans/week3-*`, `docs/plans/test-project-skeleton.*` |
+| 23 | Config/Legal | Medium (blocks the Week 4 deploy) | `NZWalks.API.csproj`, `Program.cs` |
+| 24 | Tooling | Low | `Program.cs`, `docs/02-MIDDLEWARE-PIPELINE.md` |
+| 25 | Bug | Low | `Repositories/SQLWalkRepository.cs` |
